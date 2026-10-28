@@ -146,27 +146,6 @@ public partial class FlyoutWindow : Window
         if (sender is ScrollViewer list) { list.ScrollToVerticalOffset(list.VerticalOffset - e.Delta * .4); e.Handled = true; }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Dismiss();
-    private void Footer_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        // Border clips its background, but not children. Keep the section fills
-        // inside the rounded outside corners while the inside edge stays flat.
-        var surface = (Border)sender;
-        var width = e.NewSize.Width;
-        var height = e.NewSize.Height;
-        var radius = Math.Min(43, Math.Min(width / 2, height));
-        var clip = new System.Windows.Media.StreamGeometry();
-        using (var path = clip.Open())
-        {
-            path.BeginFigure(new Point(0, 0), true, true);
-            path.LineTo(new Point(width, 0), true, false);
-            path.LineTo(new Point(width, height - radius), true, false);
-            path.ArcTo(new Point(width - radius, height), new Size(radius, radius), 0, false, System.Windows.Media.SweepDirection.Clockwise, true, false);
-            path.LineTo(new Point(radius, height), true, false);
-            path.ArcTo(new Point(0, height - radius), new Size(radius, radius), 0, false, System.Windows.Media.SweepDirection.Clockwise, true, false);
-        }
-        clip.Freeze();
-        surface.Clip = clip;
-    }
     private void Window_Deactivated(object? sender, EventArgs e) { if (IsPinned && !KeepOpen && !IsOpening) Dismiss(); }
     private void Previous_Click(object sender, RoutedEventArgs e) => ViewModel.MoveSelection(-1);
     private void Next_Click(object sender, RoutedEventArgs e) => ViewModel.MoveSelection(1);
