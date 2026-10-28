@@ -17,7 +17,7 @@ public sealed class AudioDeviceModel : INotifyPropertyChanged
     public int Volume { get; private set; }
     public bool Muted { get; private set; }
     public bool IsDefault { get; private set; }
-    public string Status => IsDefault ? "●  EN USO" : "DISPONIBLE";
+    public string Status => IsDefault ? "● EN USO" : "DISPONIBLE";
     private bool _isPreview;
     public bool IsPreview { get => _isPreview; set { _isPreview = value; OnPropertyChanged(); } }
 

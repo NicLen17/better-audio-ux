@@ -108,7 +108,7 @@ Utiliza NAudio.Wasapi/NAudio.Core (MIT), el runtime de .NET y **SoundVolumeComma
 
 Consultá [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) y el [readme original de NirSoft](ThirdParty/SoundVolumeCommandLine/readme.txt). Las licencias de las dependencias no conceden una licencia sobre el código propio del proyecto.
 
-## Interfaz compacta 1.2.3
+## Interfaz con footer integrado 1.2.4
 
-Mezclador, Espacial y Al navegar comparten una fila. El pin es de contorno cuando está desfijado y sólido al fijarlo. El encabezado incluye acceso a la configuración general de audio y un cierre circular oscuro. La vista principal mide 408 × 378 DIPs.
+El panel cuenta con un footer inferior al 100% con el color del nav para alojar con mejor espacio Mezclador, Espacial y Fijar salida. Los indicadores de estado de los dispositivos ("EN USO" y "DISPONIBLE") cuentan con mayor visibilidad, fondo y tipografía destacada. La vista principal mide 408 × 378 DIPs.
 
