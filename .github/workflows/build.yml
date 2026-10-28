@@ -1,0 +1,19 @@
+name: Windows build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify and publish
+        shell: pwsh
+        run: ./build.ps1 -Test
+      - uses: actions/upload-artifact@v7
+        with:
+          name: BetterAudio-win-x64
+          path: artifacts/BetterAudio/

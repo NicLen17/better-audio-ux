@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AudioFlyoutApp/AudioFlyoutApp.csproj" />
+  <Project Path="AudioFlyoutApp.Tests/AudioFlyoutApp.Tests.csproj" />
+</Solution>

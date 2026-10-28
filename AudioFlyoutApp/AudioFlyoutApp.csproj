@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\audio.ico</ApplicationIcon>
+    <AssemblyName>BetterAudio</AssemblyName>
+    <RootNamespace>BetterAudio</RootNamespace>
+    <Version>1.2.2</Version>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
+    <Resource Include="Assets\audio.ico" />
+    <Content Include="..\ThirdParty\SoundVolumeCommandLine\*" Link="ThirdParty\SoundVolumeCommandLine\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\ThirdParty\SoundVolumeCommandLine.provenance.json" Link="ThirdParty\SoundVolumeCommandLine.provenance.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
+
+

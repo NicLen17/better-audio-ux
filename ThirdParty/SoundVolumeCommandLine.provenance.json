@@ -1,0 +1,10 @@
+{
+  "product": "SoundVolumeCommandLine",
+  "version": "1.28",
+  "author": "Nir Sofer",
+  "source": "https://www.nirsoft.net/utils/svcl-x64.zip",
+  "documentation": "https://www.nirsoft.net/utils/sound_volume_command_line.html",
+  "archiveSha256": "7BA008E9ECE8B3EDA323EF01711E4647EB7F40B28DC25F98B2ED6A738810BFCD",
+  "executableSha256": "0C4738296D253495BC995DA7B5938E27B306C8F204DC9F7D4D5D455F1D8D3E38",
+  "license": "Freeware; unchanged redistribution with all original files; no sale or bundling as part of a commercial product. See SoundVolumeCommandLine/readme.txt."
+}
