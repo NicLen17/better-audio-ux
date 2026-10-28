@@ -274,7 +274,10 @@ internal static class Program
             Check(window.Height > 378 && window.Height < 482, "Mixer expansion passes through intermediate heights");
         var expandingHeight = window.Height;
         await vm.CloseMixerAsync();
-        Check(Math.Abs(window.Height - expandingHeight) < 3, "Reversing a resize starts from its current height without snapping");
+        if (System.Windows.SystemParameters.ClientAreaAnimation)
+            Check(Math.Abs(window.Height - expandingHeight) < 3, "Reversing a resize starts from its current height without snapping");
+        else
+            Check(Math.Abs(window.Height - 378) < 1, "With animations disabled, returning to Main resizes immediately");
         await Task.Delay(360);
         Check(Math.Abs(window.Height - 378) < 1 && window.Opacity == 1, "Returning to Main finishes at its compact height without fading the native window");
         await vm.OpenMixerAsync();

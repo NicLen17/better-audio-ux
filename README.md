@@ -1,116 +1,112 @@
 # Better Audio UX
 
-Un pequeño HUD para Windows 11 que pone tus salidas de audio y el volumen de tus aplicaciones a un clic de distancia.
+A compact Windows 11 audio HUD that puts output devices and application volume one click away. It lives in the system tray and reduces the steps needed to switch between headphones and speakers, adjust volume, or mute an application.
 
-Better Audio UX vive en la bandeja del sistema. Su objetivo es reducir los pasos necesarios para cambiar de auriculares a altavoces, ajustar el volumen o silenciar una aplicación, manteniendo una interfaz compacta y accesible con mouse y teclado.
+Built with **C#, WPF, and .NET 10 LTS**. Current application release: **1.2.9**. The application interface is currently in Spanish; this documentation is in English.
 
-Es un side project de escritorio desarrollado con **C#, WPF y .NET 10 LTS**. Versión actual: **1.2.3**.
+**Resumen en español:** Better Audio UX es una herramienta portable para Windows 11 que permite cambiar la salida de audio, ajustar el volumen y silenciar aplicaciones desde un panel compacto en la bandeja del sistema. Incluye un carrusel de dispositivos, mezclador integrado, control de Windows Sonic y navegación con mouse y teclado, para reducir los clics necesarios en la configuración de Windows.
 
-## Así se ve
+## Screenshots
 
-| Dispositivos | Mezclador integrado |
+| Output selector | Integrated mixer |
 | --- | --- |
-| ![Selector de dispositivos en arco](docs/images/hud.png) | ![Volumen general y por aplicación](docs/images/mixer.png) |
+| ![Arc-shaped output selector](docs/images/hud.png) | ![Master and per-application volume](docs/images/mixer.png) |
 
-Las imágenes muestran datos de demostración.
+Screenshots use demonstration data.
 
-## Qué podés hacer
+## Features
 
-- Recorrer tus dispositivos mediante un carrusel en arco y ver cuál está **en uso** o **disponible**.
-- Activar una salida al navegar, o deshabilitar esa opción para confirmar con clic o Enter.
-- Ajustar volumen y silencio de cada salida.
-- Abrir un mezclador de aplicaciones dentro del mismo HUD, sin pasar por Configuración.
-- Activar Windows Sonic desde un checkbox y acceder a los proveedores espaciales de Windows.
-- Fijar el panel para mantenerlo abierto mientras usás otra aplicación.
-- Usarlo en distintos monitores, con posicionamiento sobre el icono de bandeja y ajuste a los límites de pantalla.
+- Browse outputs in an animated arc, with **in use** and **available** status labels.
+- Switch outputs automatically while browsing, or require a click or Enter to confirm.
+- Adjust each output's volume and mute state.
+- Control application audio sessions inside the same overlay.
+- Enable Windows Sonic and open Windows settings for other spatial providers.
+- Pin the panel to keep it open while working in another application.
+- Position the HUD above its tray icon, respecting monitor boundaries and DPI.
+- Smoothly expand and collapse between the main view and mixer, respecting Windows animation preferences.
 
-## Descargar y ejecutar
+## Download and run
 
-Descargá el ZIP portable desde [Releases](https://github.com/NicLen17/better-audio-ux/releases), extraelo y ejecutá **BetterAudio.exe**. Conservá los demás archivos junto al ejecutable.
+Download the portable ZIP from [Releases](https://github.com/NicLen17/better-audio-ux/releases), extract it, and run **BetterAudio.exe**. Keep the other files beside the executable.
 
-La publicación para **Windows x64** incluye el runtime de .NET: no requiere instalarlo ni ejecutar como administrador. Si el icono aparece en el menú de iconos ocultos junto al reloj, podés arrastrarlo a la bandeja visible.
+The **Windows x64** package includes the .NET runtime and requires neither a separate runtime installation nor administrator privileges. If Windows places the icon in the hidden-icons menu, drag it into the visible tray.
 
-## Controles
+## Controls
 
-| Acción | Cómo |
+| Action | Input |
 | --- | --- |
-| Vista previa | Hover sobre el icono de bandeja |
-| Abrir con teclado | Clic en el icono |
-| Recorrer salidas | ← / →, rueda sobre el arco o botones laterales |
-| Confirmar una salida en modo manual | Clic en su burbuja o Enter |
-| Ajustar volumen de salida | Slider o ↑ / ↓; rueda sobre el volumen |
-| Ajuste rápido | Shift para pasos de 10% en lugar de 2% |
-| Silenciar salida | Botón de altavoz o M |
-| Abrir mezclador integrado | Botón Mezclador |
-| Ajustar una aplicación | Arrastrar su slider; ↑ / ↓ con su control enfocado |
-| Explorar la lista del mezclador | Rueda: desplaza la lista sin cambiar volumen |
-| Volver a dispositivos | Flecha de regreso o Esc |
-| Mantener abierto | Botón de fijar en el encabezado |
-| Cerrar overlay | Cruz; Esc desde la vista principal |
-| Salir de la app | Clic derecho en el icono → Salir |
+| Preview without taking keyboard focus | Hover over the tray icon |
+| Open with keyboard interaction | Click the tray icon |
+| Browse outputs | Left / Right arrows, wheel over the arc, horizontal scroll, or side arrows |
+| Confirm an output in manual mode | Click its bubble or press Enter |
+| Adjust output volume | Slider, Up / Down arrows, or wheel over the volume control |
+| Larger volume steps | Hold Shift for 10% steps instead of 2% |
+| Mute output | Speaker button or M |
+| Open integrated mixer | Mezclador section |
+| Adjust an application | Drag its slider, or use Up / Down with its control focused |
+| Browse mixer sessions | Wheel over the list; this scrolls without changing volume |
+| Mute an application | Its speaker button, or M with its control focused |
+| Return to outputs | Back arrow or Esc |
+| Keep the panel open | Pin button in the header |
+| Close the overlay | Close button, or Esc from the main view |
+| Quit the application | Right-click tray icon, then Salir |
 
-**Activar al navegar** viene habilitado y recuerda tu preferencia. En modo manual, recorrer salidas no cambia el audio. El estado **En uso** indica la salida real de Windows.
+**Fijar al navegar** enables automatic switching and remembers your preference. In manual mode, browsing does not change the Windows default output. **En uso** identifies the actual active output; **Disponible** identifies an available alternative.
 
-El mezclador muestra las sesiones de la salida seleccionada; una aplicación puede tener varias sesiones. El volumen general permanece separado de los controles por aplicación. Los engranajes abren las opciones correspondientes de Windows.
+The mixer shows sessions for the selected output. One application can have multiple sessions. Master volume is visually separated from application controls. The header gear opens general audio settings; footer gears open the corresponding Windows settings.
 
-## Sonido espacial
+## Spatial audio
 
-Marcar el checkbox selecciona **Windows Sonic**; desmarcarlo desactiva el procesamiento espacial. El programa consulta el estado nativo después de escribirlo. Si no puede obtener el estado, deshabilita el checkbox y conserva el acceso a configuración.
+Enabling **Sonido espacial** selects **Windows Sonic**; disabling it turns spatial processing off. The application reads the native state again after a change. If the state cannot be determined, the toggle is disabled while settings remain accessible.
 
-El engranaje permite elegir Dolby/DTS y otros proveedores disponibles. Sus licencias y compatibilidad dependen de Windows y del dispositivo. Volver a marcar el checkbox selecciona Sonic, aunque antes se hubiera usado otro proveedor.
+The gear opens output properties for Dolby/DTS and other available providers. Availability and licensing depend on Windows and your device. Enabling the toggle again selects Sonic even if another provider was previously configured. Unsupported devices may reject the change; the HUD reports the failure and retains the observed state.
 
-## Compilar desde el código
+## Build from source
 
-Requiere Windows y el **SDK de .NET 10**.
+Requires Windows and the **.NET 10 SDK**.
 
 ```powershell
-# Publicación portable x64
+# Publish a portable x64 build
 .\build.ps1
 
-# Pruebas, integración con Windows y ZIP
+# Run regression tests and create a ZIP
+.\build.ps1 -Test -Package
+
+# Also run integration checks against local Windows audio
 .\build.ps1 -Test -Live -Package
 ```
 
-Cerrá la app desde su menú de bandeja antes de publicar. El resultado queda en `artifacts/BetterAudio/` y el ZIP en `artifacts/BetterAudio-win-x64.zip`.
+Quit the running application before publishing. Output is written to `artifacts/BetterAudio/`; the ZIP is `artifacts/BetterAudio-win-x64.zip`. You can also open `BetterAudio.slnx` in a .NET 10 compatible development environment.
 
-También podés abrir `BetterAudio.slnx` en un entorno compatible con .NET 10. El workflow de GitHub Actions compila y ejecuta las pruebas en Windows.
+GitHub Actions builds, tests, and publishes a portable artifact on Windows. See the [development guide](docs/DEVELOPMENT.md) for test modes and implementation details.
 
-## Arquitectura
+## Architecture
 
-- **Core/Audio:** Core Audio, sesiones del mezclador y cambios de salida; objetos COM confinados a un hilo dedicado.
-- **Core/Models:** snapshots de dispositivos y sesiones.
-- **UI/Flyout:** HUD, carrusel, animaciones y controles.
-- **UI/ViewModels:** estado reactivo y escrituras de volumen agrupadas.
-- **Services:** bandeja Win32, posicionamiento, preferencias y diagnóstico.
-- **AudioFlyoutApp.Tests:** pruebas de comportamiento, layout e integración.
+- **Core/Audio:** Core Audio endpoints, sessions, and output switching; COM objects stay on a dedicated thread.
+- **Core/Models:** Device and session snapshots.
+- **UI/Flyout:** HUD, carousel, animations, and input controls.
+- **UI/ViewModels:** Reactive state and coalesced volume writes.
+- **Services:** Win32 tray integration, positioning, preferences, and diagnostics.
+- **AudioFlyoutApp.Tests:** Behavior, layout, animation, and integration checks.
 
-Más detalles en [la guía de desarrollo](docs/DEVELOPMENT.md).
+## Scope and limitations
 
-## Alcance y limitaciones
+- Portable, unsigned application without an installer or automatic updater.
+- Output switching uses the undocumented Windows `IPolicyConfig` interface, which may need changes in future Windows versions.
+- Microphone controls and per-application output routing are not included. Applications with explicitly assigned outputs may retain those assignments.
+- Physical Bluetooth/USB reconnection and mixed-monitor/DPI setups need testing on the relevant hardware.
+- Application icons fall back to a generic icon when Windows cannot provide them.
 
-- Aplicación portable sin firma de distribución, instalador ni actualizador automático.
-- El cambio de salida utiliza `IPolicyConfig`, una interfaz de Windows no documentada que puede requerir ajustes en versiones futuras.
-- No incluye control de micrófonos ni redirección de salida por aplicación. Las aplicaciones con una salida fijada pueden mantener esa asignación.
-- La reconexión física Bluetooth/USB y combinaciones de monitores/DPI necesitan pruebas en cada equipo.
-- Los iconos de aplicaciones usan un reemplazo genérico cuando Windows no permite obtenerlos.
+## Privacy and troubleshooting
 
-## Privacidad y diagnóstico
+No accounts, application telemetry, or remote services. Preferences and rotating logs are stored locally under `%LOCALAPPDATA%\BetterAudio`. The application does not add itself to Windows startup.
 
-Sin cuentas, telemetría propia ni servicios remotos. Las preferencias y logs rotativos se guardan localmente en `%LOCALAPPDATA%\BetterAudio`. La aplicación no se agrega automáticamente al inicio de Windows.
+To report a problem, [open an issue](https://github.com/NicLen17/better-audio-ux/issues) with your Windows version, reproduction steps, and expected behavior. Review logs before sharing them.
 
-Para reportar un problema, abrí un [issue](https://github.com/NicLen17/better-audio-ux/issues) con tu versión de Windows, los pasos para reproducirlo y el comportamiento esperado. Revisá cualquier log antes de compartirlo.
+## Dependencies and distribution
 
-## Dependencias y distribución
+Uses NAudio.Wasapi/NAudio.Core (MIT), the .NET runtime, and **SoundVolumeCommandLine 1.28** by Nir Sofer for spatial-audio changes.
 
-Utiliza NAudio.Wasapi/NAudio.Core (MIT), el runtime de .NET y **SoundVolumeCommandLine 1.28**, de Nir Sofer, para configurar sonido espacial.
+**The NirSoft component is freeware with restrictions:** free redistribution requires all original files, and sale or inclusion in a commercial product is prohibited. The package preserves the originals and verifies the executable hash during builds. A commercial distribution would require replacing that backend or obtaining permission from its author.
 
-**El componente de NirSoft es freeware con restricciones:** permite redistribución gratuita con todos sus archivos originales, pero prohíbe venderlo o incluirlo en un producto comercial. El paquete conserva los originales y verifica su hash al compilar. Antes de una distribución comercial, es necesario sustituir ese backend u obtener autorización del titular.
-
-Consultá [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) y el [readme original de NirSoft](ThirdParty/SoundVolumeCommandLine/readme.txt). Las licencias de las dependencias no conceden una licencia sobre el código propio del proyecto.
-
-## Interfaz compacta 1.2.9
-
-El footer se divide en tres secciones: Mezclador, Espacial y Fijar al navegar. Las opciones activas colorean su sección completa, sin casillas; los engranajes siguen abriendo sus ajustes de Windows. Las tres secciones del footer conservan sus bordes rectos, con una base decorativa independiente que redondea el borde inferior sin recortar los botones. Mezclador y Sonido espacial centran su texto junto al engranaje y comparten el hover de toda la sección. Una línea separa la base decorativa de los controles. El encabezado conserva sus esquinas superiores redondeadas. Los engranajes tienen contenedores circulares con contraste, que invierten sus colores cuando Espacial está activo. La apertura prepara el audio antes de mostrar un único fundido del contenido, sin volver a escalar ni cambiar la opacidad de la ventana. Los indicadores de estado de los dispositivos ("EN USO" y "DISPONIBLE") cuentan con mayor visibilidad, fondo y tipografía destacada. La vista principal mide 408 × 378 DIPs.
-
-
-El cambio entre la vista principal y el mezclador anima la altura durante 300 ms, con fundido y desplazamiento del contenido. Respeta la opción de animaciones de Windows. Los clics en interruptores no dejan un borde de foco persistente; la navegación por teclado conserva su indicador de foco.
+See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the [original NirSoft readme](ThirdParty/SoundVolumeCommandLine/readme.txt). Dependency licenses do not grant a license to this project's own code.
