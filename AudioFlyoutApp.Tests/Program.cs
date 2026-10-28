@@ -135,13 +135,13 @@ internal static class Program
         try
         {
             var root = (System.Windows.FrameworkElement)window.Content;
-            root.Measure(new System.Windows.Size(408, 410));
-            root.Arrange(new System.Windows.Rect(0, 0, 408, 410));
+            root.Measure(new System.Windows.Size(408, 378));
+            root.Arrange(new System.Windows.Rect(0, 0, 408, 378));
             root.UpdateLayout();
             var carousel = (System.Windows.Controls.ItemsControl)window.FindName("Carousel");
             Check(carousel.ItemContainerGenerator.ContainerFromIndex(1) is not null,
                 "First HUD layout generates its radial items host with a preselected device");
-            Check(window.Width == 408 && window.Height == 410 && window.AllowsTransparency,
+            Check(window.Width == 408 && window.Height == 378 && window.AllowsTransparency,
                 "HUD loads its compact dimensions and transparent window bindings");
             var pin = (System.Windows.Controls.Button)window.FindName("PinButton");
             pin.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -420,5 +420,6 @@ internal static class Program
         public bool AutoSwitchOnNavigation { get; set; } = initial;
     }
 }
+
 
 

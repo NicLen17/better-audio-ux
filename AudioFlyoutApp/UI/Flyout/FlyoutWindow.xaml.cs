@@ -140,7 +140,7 @@ public partial class FlyoutWindow : Window
     }
     private void UpdatePin()
     {
-        PinButton.Content = KeepOpen ? "" : "";
+        PinShape.Fill = KeepOpen ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(20, 44, 40)) : System.Windows.Media.Brushes.Transparent;
         PinButton.ToolTip = KeepOpen ? "Desfijar panel: cerrar al perder el foco" : "Fijar panel: mantener abierto al usar otra aplicación";
         System.Windows.Automation.AutomationProperties.SetItemStatus(PinButton, KeepOpen ? "Fijado" : "Sin fijar");
     }
@@ -157,6 +157,7 @@ public partial class FlyoutWindow : Window
     private async void Mute_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleMuteAsync();
     private async void Retry_Click(object sender, RoutedEventArgs e) => await ViewModel.RefreshAsync();
     private async void Mixer_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenMixerAsync();
+    private void AudioSettings_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:sound");
     private void MixerSettings_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:apps-volume");
     private async void Back_Click(object sender, RoutedEventArgs e) => await ViewModel.CloseMixerAsync();
     private async void SpatialToggle_Click(object sender, RoutedEventArgs e)
@@ -240,5 +241,6 @@ public partial class FlyoutWindow : Window
     }
     public void CloseForExit() { _allowClose = true; ViewModel.PropertyChanged -= ViewModel_Changed; Close(); }
 }
+
 
 

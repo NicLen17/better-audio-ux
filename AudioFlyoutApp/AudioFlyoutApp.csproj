@@ -10,7 +10,7 @@
     <ApplicationIcon>Assets\audio.ico</ApplicationIcon>
     <AssemblyName>BetterAudio</AssemblyName>
     <RootNamespace>BetterAudio</RootNamespace>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
@@ -20,5 +20,6 @@
     <Content Include="..\ThirdParty\SoundVolumeCommandLine.provenance.json" Link="ThirdParty\SoundVolumeCommandLine.provenance.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
+
 
 

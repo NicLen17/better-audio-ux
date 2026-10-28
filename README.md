@@ -4,7 +4,7 @@ Un pequeño HUD para Windows 11 que pone tus salidas de audio y el volumen de tu
 
 Better Audio UX vive en la bandeja del sistema. Su objetivo es reducir los pasos necesarios para cambiar de auriculares a altavoces, ajustar el volumen o silenciar una aplicación, manteniendo una interfaz compacta y accesible con mouse y teclado.
 
-Es un side project de escritorio desarrollado con **C#, WPF y .NET 10 LTS**. Versión actual: **1.2.2**.
+Es un side project de escritorio desarrollado con **C#, WPF y .NET 10 LTS**. Versión actual: **1.2.3**.
 
 ## Así se ve
 
@@ -107,3 +107,8 @@ Utiliza NAudio.Wasapi/NAudio.Core (MIT), el runtime de .NET y **SoundVolumeComma
 **El componente de NirSoft es freeware con restricciones:** permite redistribución gratuita con todos sus archivos originales, pero prohíbe venderlo o incluirlo en un producto comercial. El paquete conserva los originales y verifica su hash al compilar. Antes de una distribución comercial, es necesario sustituir ese backend u obtener autorización del titular.
 
 Consultá [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) y el [readme original de NirSoft](ThirdParty/SoundVolumeCommandLine/readme.txt). Las licencias de las dependencias no conceden una licencia sobre el código propio del proyecto.
+
+## Interfaz compacta 1.2.3
+
+Mezclador, Espacial y Al navegar comparten una fila. El pin es de contorno cuando está desfijado y sólido al fijarlo. El encabezado incluye acceso a la configuración general de audio y un cierre circular oscuro. La vista principal mide 408 × 378 DIPs.
+

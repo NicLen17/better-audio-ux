@@ -63,7 +63,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
     public string VolumeGlyph => _muted || _volume == 0 ? "\uE74F" : "\uE767";
     public string MuteLabel => _muted ? "Activar sonido (M)" : "Silenciar (M)";
     public string Message { get => _message; private set { _message = value; Notify(); Notify(nameof(HasMessage)); Notify(nameof(HudHeight)); } }
-    public double HudHeight => (IsMixerOpen ? 482 : 410) + (HasMessage ? 28 : 0);
+    public double HudHeight => (IsMixerOpen ? 482 : 378) + (HasMessage ? 28 : 0);
     public bool HasMessage => !string.IsNullOrEmpty(Message);
     public int Volume
     {
@@ -240,4 +240,5 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
         _sessionWriteTimer?.Stop();
     }
 }
+
 

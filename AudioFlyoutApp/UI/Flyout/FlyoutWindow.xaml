@@ -92,14 +92,17 @@
         <Grid>
         <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/></Grid.RowDefinitions>
         <Border CornerRadius="43,43,12,12" Background="#96E6C9"><Grid Margin="17,4">
-            <Button x:Name="PinButton" Style="{StaticResource HeaderButton}" Foreground="#142C28" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Content="&#xE718;" FontSize="15" HorizontalAlignment="Left" Click="Pin_Click" ToolTip="Fijar panel: mantener abierto al usar otra aplicación" AutomationProperties.Name="Fijar o desfijar panel"/>
-            <TextBlock Text="Better Audio UX" Foreground="#142C28" FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            <Button Style="{StaticResource HeaderButton}" Foreground="#142C28" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Content="&#xE711;" FontSize="12" HorizontalAlignment="Right" Click="Close_Click" ToolTip="Cerrar · Esc" AutomationProperties.Name="Cerrar overlay"/>
+            <Button x:Name="PinButton" Style="{StaticResource HeaderButton}" Foreground="#142C28" HorizontalAlignment="Left" Click="Pin_Click" ToolTip="Fijar panel: mantener abierto al usar otra aplicación" AutomationProperties.Name="Fijar o desfijar panel"><Viewbox Width="18" Height="18"><Path x:Name="PinShape" Data="M 6,2 L 18,2 L 16,5 L 16,11 L 20,15 L 13,15 L 12,23 L 11,15 L 4,15 L 8,11 L 8,5 Z" Stroke="#142C28" StrokeThickness="1.5" Fill="Transparent" StrokeLineJoin="Round"/></Viewbox></Button>
+            <TextBlock Text="Better Audio UX" Foreground="#142C28" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Style="{StaticResource HeaderButton}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Content="&#xE713;" FontSize="13" Click="AudioSettings_Click" ToolTip="Configuración general de audio" AutomationProperties.Name="Abrir configuración general de audio" Margin="0,0,3,0"/>
+                <Button Width="28" Height="28" Cursor="Hand" Click="Close_Click" ToolTip="Cerrar · Esc" AutomationProperties.Name="Cerrar overlay"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="CloseCircle" Background="#172B30" CornerRadius="14"><TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#BFF4DE" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>
+            </StackPanel>
         </Grid></Border>
         <Grid x:Name="OutputView" Grid.Row="1" Margin="12,8,12,14">
             <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
-            <Grid.RowDefinitions><RowDefinition Height="148"/><RowDefinition Height="42"/><RowDefinition Height="42"/><RowDefinition Height="48"/><RowDefinition Height="28"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="148"/><RowDefinition Height="42"/><RowDefinition Height="42"/><RowDefinition Height="44"/><RowDefinition Height="0"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid x:Name="CarouselViewport" PreviewMouseWheel="Carousel_Wheel" ClipToBounds="True">
                 <Ellipse Width="128" Height="78" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,20,0,0" Fill="#255B4A" Opacity="0.35" IsHitTestVisible="False"><Ellipse.Effect><BlurEffect Radius="26"/></Ellipse.Effect></Ellipse>
                 <ItemsControl x:Name="Carousel" ItemsSource="{Binding Devices}">
@@ -147,20 +150,21 @@
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border CornerRadius="19" Background="#26353B" Margin="0,0,8,0">
                     <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource GroupButton}" Click="Mixer_Click" AutomationProperties.Name="Abrir mezclador integrado"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE9E9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/><TextBlock Text="Mezclador" FontSize="11"/></StackPanel></Button>
+                        <Button Style="{StaticResource GroupButton}" Padding="8,9" Click="Mixer_Click" AutomationProperties.Name="Abrir mezclador integrado"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE9E9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/><TextBlock Text="Mezclador" FontSize="10"/></StackPanel></Button>
                         <Border Width="1" Height="17" Background="#49635E" VerticalAlignment="Center"/>
-                        <Button Width="29" Style="{StaticResource IconButton}" Click="MixerSettings_Click" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Mezclador de Windows" AutomationProperties.Name="Abrir configuración del mezclador en Windows"/>
+                        <Button Width="24" Style="{StaticResource IconButton}" Click="MixerSettings_Click" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Mezclador de Windows" AutomationProperties.Name="Abrir configuración del mezclador en Windows"/>
                     </StackPanel>
                 </Border>
                 <Border CornerRadius="19" Background="#26353B">
                     <StackPanel Orientation="Horizontal">
-                        <CheckBox Content="Sonido espacial" Margin="12,0,10,0" FontSize="10" IsChecked="{Binding SpatialEnabled, Mode=OneWay}" IsEnabled="{Binding CanToggleSpatial}" Click="SpatialToggle_Click" ToolTip="{Binding SpatialHint}" ToolTipService.ShowOnDisabled="True" VerticalAlignment="Center" AutomationProperties.Name="Activar o desactivar sonido espacial"/>
+                        <CheckBox Content="Espacial" Margin="8,0,7,0" FontSize="10" IsChecked="{Binding SpatialEnabled, Mode=OneWay}" IsEnabled="{Binding CanToggleSpatial}" Click="SpatialToggle_Click" ToolTip="{Binding SpatialHint}" ToolTipService.ShowOnDisabled="True" VerticalAlignment="Center" AutomationProperties.Name="Activar o desactivar sonido espacial"/>
                         <Border Width="1" Height="17" Background="#49635E" VerticalAlignment="Center"/>
-                        <Button Width="29" Style="{StaticResource IconButton}" Click="Spatial_Click" IsEnabled="{Binding HasDevices}" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Proveedores y propiedades de sonido espacial en Windows" AutomationProperties.Name="Configurar sonido espacial en Windows"/>
+                        <Button Width="24" Style="{StaticResource IconButton}" Click="Spatial_Click" IsEnabled="{Binding HasDevices}" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Proveedores y propiedades de sonido espacial en Windows" AutomationProperties.Name="Configurar sonido espacial en Windows"/>
                     </StackPanel>
                 </Border>
+            <CheckBox Content="Al navegar" Margin="7,0,0,0" FontSize="10" IsChecked="{Binding AutoSwitchOnNavigation, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Cambia la salida al recorrer el arco. Desmarcá para confirmar con clic o Enter." AutomationProperties.Name="Activar dispositivo al navegar"/>
             </StackPanel>
-            <CheckBox Grid.Row="4" Content="Activar al navegar" IsChecked="{Binding AutoSwitchOnNavigation, Mode=TwoWay}" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Cambia la salida al recorrer el arco. Desmarcá para confirmar con clic o Enter." AutomationProperties.Name="Activar dispositivo al navegar"/>
+
             <TextBlock Grid.Row="5" Text="{Binding Message}" Foreground="#EBC9AA" Background="#ED17242B" FontSize="9" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Top" MaxWidth="330" Margin="0,-1,0,0" Visibility="{Binding HasMessage, Converter={StaticResource VisibleIf}}" AutomationProperties.LiveSetting="Polite"/>
         </Grid>
         <Grid x:Name="MixerView" Grid.Row="1" Margin="20,8,20,18">
@@ -205,6 +209,7 @@
         </Grid>
     </Border>
 </Window>
+
 
 
 
