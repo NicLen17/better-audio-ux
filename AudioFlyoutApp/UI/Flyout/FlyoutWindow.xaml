@@ -9,8 +9,8 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="VisibleIf"/>
         <Style x:Key="FooterGroupButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#142C28"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="9,6"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="Transparent" CornerRadius="0" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#25142C28"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="Background" Value="#25142C28"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+            <Setter Property="Foreground" Value="#142C28"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="9,6,3,6"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="Transparent" CornerRadius="0" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Right"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#25142C28"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="Background" Value="#25142C28"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="FooterIconButton" TargetType="Button">
             <Setter Property="Foreground" Value="#C5F6E4"/><Setter Property="Background" Value="#172B30"/><Setter Property="Cursor" Value="Hand"/>
@@ -21,7 +21,7 @@
             <Setter Property="Foreground" Value="#142C28"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
-                <Border x:Name="Section" Background="Transparent" Padding="6,0"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                <Border x:Name="Section" Background="Transparent" Padding="6,0"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/></Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Section" Property="Background" Value="#2D5C4E"/><Setter Property="Foreground" Value="#E3FFF3"/></Trigger>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Section" Property="Opacity" Value="0.8"/></Trigger>
@@ -107,12 +107,12 @@
         </Style>
         <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource IconButton}"><Setter Property="Foreground" Value="#142C28"/><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#28483D"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="#28483D"/></Trigger></Style.Triggers></Style>
     </Window.Resources>
-    <Border x:Name="HudSurface" Margin="14" CornerRadius="44,44,0,0" BorderBrush="#8596E6C9" BorderThickness="1" RenderTransformOrigin="0.5,1">
+    <Border x:Name="HudSurface" Margin="14" CornerRadius="44,44,16,16" BorderBrush="#8596E6C9" BorderThickness="1" RenderTransformOrigin="0.5,1">
         <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EB18282C" Offset="0"/><GradientStop Color="#F0111B23" Offset="1"/></LinearGradientBrush></Border.Background>
         <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="3" Opacity="0.22" Color="#000000"/></Border.Effect>
         <Border.RenderTransform><TransformGroup><ScaleTransform x:Name="RevealScale"/><TranslateTransform x:Name="RevealOffset"/></TransformGroup></Border.RenderTransform>
         <Grid>
-        <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Border CornerRadius="43,43,0,0" Background="#96E6C9"><Grid Margin="17,4">
             <Button x:Name="PinButton" Style="{StaticResource HeaderButton}" Foreground="#142C28" HorizontalAlignment="Left" Click="Pin_Click" ToolTip="Fijar panel: mantener abierto al usar otra aplicación" AutomationProperties.Name="Fijar o desfijar panel"><Viewbox Width="18" Height="18"><Path x:Name="PinShape" Data="M 6,2 L 18,2 L 16,5 L 16,11 L 20,15 L 13,15 L 12,23 L 11,15 L 4,15 L 8,11 L 8,5 Z" Stroke="#142C28" StrokeThickness="1.5" Fill="Transparent" StrokeLineJoin="Round"/></Viewbox></Button>
             <TextBlock Text="Better Audio UX" Foreground="#142C28" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,24,0"/>
@@ -186,14 +186,14 @@
                 <Border Grid.Column="0" Background="Transparent" Margin="0">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource FooterGroupButton}" Click="Mixer_Click" AutomationProperties.Name="Abrir mezclador integrado" HorizontalAlignment="Stretch"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center"><TextBlock Text="&#xE9E9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/><TextBlock Text="Mezclador" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Style="{StaticResource FooterGroupButton}" Click="Mixer_Click" AutomationProperties.Name="Abrir mezclador integrado" HorizontalAlignment="Stretch"><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><TextBlock Text="&#xE9E9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/><TextBlock Text="Mezclador" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button Grid.Column="1" Style="{StaticResource FooterIconButton}" Click="MixerSettings_Click" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Mezclador de Windows" AutomationProperties.Name="Abrir configuración del mezclador en Windows"/>
                     </Grid>
                 </Border>
                 <Border Grid.Column="1" Margin="0"><Border.Style><Style TargetType="Border"><Setter Property="Background" Value="Transparent"/><Style.Triggers><DataTrigger Binding="{Binding SpatialEnabled}" Value="True"><Setter Property="Background" Value="#2D5C4E"/></DataTrigger></Style.Triggers></Style></Border.Style>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
-                        <CheckBox Style="{StaticResource FooterCheckBox}" Content="Espacial" Margin="0" IsChecked="{Binding SpatialEnabled, Mode=OneWay}" IsEnabled="{Binding CanToggleSpatial}" Click="SpatialToggle_Click" ToolTip="{Binding SpatialHint}" ToolTipService.ShowOnDisabled="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="Activar o desactivar sonido espacial"/>
+                        <CheckBox Style="{StaticResource FooterCheckBox}" Content="Espacial" HorizontalContentAlignment="Right" Margin="0" IsChecked="{Binding SpatialEnabled, Mode=OneWay}" IsEnabled="{Binding CanToggleSpatial}" Click="SpatialToggle_Click" ToolTip="{Binding SpatialHint}" ToolTipService.ShowOnDisabled="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="Activar o desactivar sonido espacial"/>
                         <Button Grid.Column="1" Style="{StaticResource FooterIconButton}" Tag="Spatial" Click="Spatial_Click" IsEnabled="{Binding HasDevices}" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Proveedores y propiedades de sonido espacial en Windows" AutomationProperties.Name="Configurar sonido espacial en Windows"/>
                     </Grid>
                 </Border>
@@ -204,6 +204,7 @@
                 </Border>
             </Grid>
         </Border>
+        <Border Grid.Row="3" Height="16" CornerRadius="0,0,15,15" Background="#96E6C9" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
         <Grid x:Name="MixerView" Grid.Row="1" Grid.RowSpan="2" Margin="20,8,20,18">
             <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
