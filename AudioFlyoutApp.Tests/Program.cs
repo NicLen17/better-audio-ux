@@ -261,6 +261,15 @@ internal static class Program
         Check(window.IsOpening && !window.IsVisible && audio.ReadCalls == 1, "Hover/click during opening prepares a single hidden frame");
         window.Dismiss(); await Task.Delay(180);
         Check(!window.IsOpening && !window.IsVisible, "Cancelling a pending opening prevents a stale refresh from showing the HUD later");
+        window.Present(false, new System.Drawing.Point(500, 500));
+        await Task.Delay(150);
+        Check(window.IsVisible && !window.IsOpening && window.Opacity == 1 && !window.HasAnimatedProperties,
+            "Opening keeps the native transparent window opaque and animates only its content");
+        await Task.Delay(230);
+        var surface = (System.Windows.Controls.Border)window.FindName("HudSurface");
+        Check(Math.Abs(surface.Opacity - 1) < .001, "Content reveal reaches full opacity without restarting");
+        window.Dismiss();
+        Check(surface.Opacity == 0, "Dismissal resets the hidden surface before the next opening");
         window.CloseForExit();
     }
     private static async Task AutomaticSwitchAsync(Dispatcher dispatcher)

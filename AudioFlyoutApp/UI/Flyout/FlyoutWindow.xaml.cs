@@ -74,8 +74,10 @@ public partial class FlyoutWindow : Window
         RevealScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, null);
         RevealScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, null);
         RevealOffset.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, null);
-        Opacity = SystemParameters.ClientAreaAnimation ? 0 : 1;
-        RevealScale.ScaleX = RevealScale.ScaleY = SystemParameters.ClientAreaAnimation ? .94 : 1;
+        Opacity = 1;
+        HudSurface.BeginAnimation(OpacityProperty, null);
+        HudSurface.Opacity = SystemParameters.ClientAreaAnimation ? 0 : 1;
+        RevealScale.ScaleX = RevealScale.ScaleY = 1;
         RevealOffset.Y = 0;
         NativeWindow.SetInteractive(this, IsPinned);
         // HWND creation can report its provisional monitor-sized bounds back to
@@ -87,20 +89,12 @@ public partial class FlyoutWindow : Window
         // Reposition after Show has applied the destination monitor's DPI.
         var placement = NativeWindow.Position(this, anchor);
         HudSurface.RenderTransformOrigin = new Point(placement.OriginX, placement.Above ? 1 : 0);
-        IsOpening = false;
         if (IsPinned) { if (!IsActive) Activate(); Focus(); }
+        IsOpening = false;
         _carouselWheel = 0; _volumeWheel = 0;
         if (SystemParameters.ClientAreaAnimation)
-        {
-            Opacity = 1;
-            BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { FillBehavior = FillBehavior.Stop });
-            RevealScale.ScaleX = RevealScale.ScaleY = 1;
-            var reveal = new DoubleAnimation(.94, 1, TimeSpan.FromMilliseconds(230)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop };
-            RevealScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, reveal);
-            RevealScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, reveal);
-            RevealOffset.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty,
-                new DoubleAnimation(placement.Above ? 10 : -10, 0, TimeSpan.FromMilliseconds(210)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
-        }
+            HudSurface.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(170))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
 
     private IntPtr WindowProc(IntPtr handle, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -129,7 +123,10 @@ public partial class FlyoutWindow : Window
         _presentationVersion++;
         IsOpening = false;
         if (!IsVisible) return;
-        Hide(); IsPinned = false; KeepOpen = false; UpdatePin();
+        Hide();
+        HudSurface.BeginAnimation(OpacityProperty, null);
+        HudSurface.Opacity = 0;
+        IsPinned = false; KeepOpen = false; UpdatePin();
         _ = ViewModel.CloseMixerAsync();
         Dismissed?.Invoke(this, EventArgs.Empty);
     }
@@ -149,7 +146,28 @@ public partial class FlyoutWindow : Window
         if (sender is ScrollViewer list) { list.ScrollToVerticalOffset(list.VerticalOffset - e.Delta * .4); e.Handled = true; }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Dismiss();
-    private void Window_Deactivated(object? sender, EventArgs e) { if (IsPinned && !KeepOpen) Dismiss(); }
+    private void Footer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Border clips its background, but not children. Keep the section fills
+        // inside the rounded outside corners while the inside edge stays flat.
+        var surface = (Border)sender;
+        var width = e.NewSize.Width;
+        var height = e.NewSize.Height;
+        var radius = Math.Min(43, Math.Min(width / 2, height));
+        var clip = new System.Windows.Media.StreamGeometry();
+        using (var path = clip.Open())
+        {
+            path.BeginFigure(new Point(0, 0), true, true);
+            path.LineTo(new Point(width, 0), true, false);
+            path.LineTo(new Point(width, height - radius), true, false);
+            path.ArcTo(new Point(width - radius, height), new Size(radius, radius), 0, false, System.Windows.Media.SweepDirection.Clockwise, true, false);
+            path.LineTo(new Point(radius, height), true, false);
+            path.ArcTo(new Point(0, height - radius), new Size(radius, radius), 0, false, System.Windows.Media.SweepDirection.Clockwise, true, false);
+        }
+        clip.Freeze();
+        surface.Clip = clip;
+    }
+    private void Window_Deactivated(object? sender, EventArgs e) { if (IsPinned && !KeepOpen && !IsOpening) Dismiss(); }
     private void Previous_Click(object sender, RoutedEventArgs e) => ViewModel.MoveSelection(-1);
     private void Next_Click(object sender, RoutedEventArgs e) => ViewModel.MoveSelection(1);
     private async void Device_Click(object sender, RoutedEventArgs e)
@@ -241,6 +259,3 @@ public partial class FlyoutWindow : Window
     }
     public void CloseForExit() { _allowClose = true; ViewModel.PropertyChanged -= ViewModel_Changed; Close(); }
 }
-
-
-
