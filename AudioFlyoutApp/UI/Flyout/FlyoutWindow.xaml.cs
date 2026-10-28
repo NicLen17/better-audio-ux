@@ -25,13 +25,14 @@ public partial class FlyoutWindow : Window
     public bool IsOpening { get; private set; }
     private bool _requestedInteractive;
     private int _presentationVersion;
+    private double _heightTarget;
 
     public FlyoutWindow(FlyoutViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
-        Height = viewModel.HudHeight;
+        Height = _heightTarget = viewModel.HudHeight;
         PreviewMouseDown += (_, _) =>
         {
             if (IsPinned) return;
@@ -44,7 +45,6 @@ public partial class FlyoutWindow : Window
         {
             if (IsVisible && _lastAnchor is { } anchor)
             {
-                if (Math.Abs(Height - ViewModel.HudHeight) > .1) Height = ViewModel.HudHeight;
                 if (Math.Abs(Width - 408) > .1) Width = 408;
                 var placement = NativeWindow.Position(this, anchor);
                 HudSurface.RenderTransformOrigin = new Point(placement.OriginX, placement.Above ? 1 : 0);
@@ -82,7 +82,8 @@ public partial class FlyoutWindow : Window
         NativeWindow.SetInteractive(this, IsPinned);
         // HWND creation can report its provisional monitor-sized bounds back to
         // WPF. Reapply the HUD dimensions before the first visible frame.
-        Height = ViewModel.HudHeight;
+        BeginAnimation(HeightProperty, null);
+        Height = _heightTarget = ViewModel.HudHeight;
         Width = 408;
         NativeWindow.Position(this, anchor);
         Show();
@@ -218,17 +219,39 @@ public partial class FlyoutWindow : Window
         }
         e.Handled = true;
     }
+    private void ResizeHud()
+    {
+        var target = ViewModel.HudHeight;
+        if (Math.Abs(_heightTarget - target) < .1) return;
+        _heightTarget = target;
+        var current = Height;
+        if (IsVisible && !IsOpening && SystemParameters.ClientAreaAnimation)
+        {
+            var transition = new DoubleAnimation(current, target, TimeSpan.FromMilliseconds(300))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
+                FillBehavior = FillBehavior.Stop
+            };
+            var clock = (AnimationClock)transition.CreateClock(true);
+            ApplyAnimationClock(HeightProperty, clock);
+            // Sample time zero immediately, including when reversing mid-flight.
+            clock.Controller!.SeekAlignedToLastTick(TimeSpan.Zero, TimeSeekOrigin.BeginTime);
+            Height = target;
+        }
+        else { BeginAnimation(HeightProperty, null); Height = target; }
+    }
     private void ViewModel_Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FlyoutViewModel.HudHeight)) Height = ViewModel.HudHeight;
+        if (e.PropertyName == nameof(FlyoutViewModel.HudHeight)) ResizeHud();
         if (e.PropertyName == nameof(FlyoutViewModel.Volume) && IsVisible && SystemParameters.ClientAreaAnimation)
             VolumeLabel.BeginAnimation(OpacityProperty, new DoubleAnimation(.55, 1, TimeSpan.FromMilliseconds(130)));
         if (e.PropertyName == nameof(FlyoutViewModel.IsMixerOpen) && IsVisible && SystemParameters.ClientAreaAnimation)
         {
             var view = ViewModel.IsMixerOpen ? MixerView : OutputView;
-            view.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+            view.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
             ((System.Windows.Media.TranslateTransform)view.RenderTransform).BeginAnimation(System.Windows.Media.TranslateTransform.XProperty,
-                new DoubleAnimation(ViewModel.IsMixerOpen ? 10 : -10, 0, TimeSpan.FromMilliseconds(200)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+                new DoubleAnimation(ViewModel.IsMixerOpen ? 16 : -12, 0, TimeSpan.FromMilliseconds(300)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         }
     }
     protected override void OnClosing(CancelEventArgs e)

@@ -92,3 +92,5 @@ Esta entrega portable está lista para probar localmente. No está firmada con u
 ## Ajustes 1.2.2
 
 Encabezado verde compartido Better Audio UX con fijar/desfijar y cierre explícito. Fijar mantiene el panel abierto al usar otras aplicaciones; desfijar restablece el cierre al perder foco. La lista del mezclador usa la rueda exclusivamente para desplazarse, tiene una zona de scrollbar más amplia e iconos genéricos cuando falta el icono de una aplicación. Icono de aplicación y silencio comparten el mismo eje vertical. El volumen se ajusta arrastrando el slider o con teclado al enfocarlo. Las dimensiones son 408 × 410 DIPs en la vista principal y 408 × 482 en el mezclador.
+
+La altura del HUD se interpola durante 300 ms al cambiar de vista. SizeChanged solamente reposiciona junto a la bandeja, sin imponer el tamaño final en cada frame. Las interrupciones parten de la altura visible actual; el contenido entra con fundido de 260 ms y desplazamiento de 300 ms. Las pruebas incluyen tamaños intermedios, inversión durante expansión y estados finales de ambas vistas.

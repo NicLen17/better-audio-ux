@@ -268,6 +268,21 @@ internal static class Program
         await Task.Delay(230);
         var surface = (System.Windows.Controls.Border)window.FindName("HudSurface");
         Check(Math.Abs(surface.Opacity - 1) < .001, "Content reveal reaches full opacity without restarting");
+        await vm.OpenMixerAsync();
+        await Task.Delay(100);
+        if (System.Windows.SystemParameters.ClientAreaAnimation)
+            Check(window.Height > 378 && window.Height < 482, "Mixer expansion passes through intermediate heights");
+        var expandingHeight = window.Height;
+        await vm.CloseMixerAsync();
+        Check(Math.Abs(window.Height - expandingHeight) < 3, "Reversing a resize starts from its current height without snapping");
+        await Task.Delay(360);
+        Check(Math.Abs(window.Height - 378) < 1 && window.Opacity == 1, "Returning to Main finishes at its compact height without fading the native window");
+        await vm.OpenMixerAsync();
+        await Task.Delay(360);
+        Check(Math.Abs(window.Height - 482) < 1, "Mixer expansion reaches its final height");
+        var mixerView = (System.Windows.Controls.Grid)window.FindName("MixerView");
+        Check(Math.Abs(mixerView.Opacity - 1) < .001, "Mixer content finishes its entrance fully visible");
+        await vm.CloseMixerAsync();
         window.Dismiss();
         Check(surface.Opacity == 0, "Dismissal resets the hidden surface before the next opening");
         window.CloseForExit();

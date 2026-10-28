@@ -15,7 +15,7 @@
         <Style x:Key="FooterIconButton" TargetType="Button">
             <Setter Property="Foreground" Value="#C5F6E4"/><Setter Property="Background" Value="#172B30"/><Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Width" Value="24"/><Setter Property="Height" Value="24"/><Setter Property="Margin" Value="0,0,4,0"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="12"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.75"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Opacity" Value="0.75"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="12"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.75"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
             <Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding SpatialEnabled}" Value="True"/><Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="Spatial"/></MultiDataTrigger.Conditions><Setter Property="Background" Value="#BFF4DE"/><Setter Property="Foreground" Value="#172B30"/></MultiDataTrigger></Style.Triggers>
         </Style>        <Style x:Key="FooterCheckBox" TargetType="CheckBox">
             <Setter Property="Foreground" Value="#142C28"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Cursor" Value="Hand"/>
@@ -24,15 +24,15 @@
                 <Border x:Name="Section" Background="Transparent" Padding="2,0"><ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/></Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsChecked" Value="True"><Setter Property="Foreground" Value="#E3FFF3"/></Trigger>
-                    
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Section" Property="BorderBrush" Value="#183C30"/><Setter TargetName="Section" Property="BorderThickness" Value="1"/></Trigger>
+
+
                     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="GroupButton" TargetType="Button">
             <Setter Property="Foreground" Value="#C1D3D0"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="12,10"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="Transparent" CornerRadius="19,0,0,19" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#364E4D"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="Background" Value="#364E4D"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" Background="Transparent" CornerRadius="19,0,0,19" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#364E4D"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style TargetType="ScrollBar">
             <Setter Property="Width" Value="16"/><Setter Property="Background" Value="Transparent"/>
@@ -59,7 +59,7 @@
                             <DoubleAnimation Storyboard.TargetName="Capsule" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.14"/>
                         </Storyboard></BeginStoryboard></Trigger.ExitActions>
                     </Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Capsule" Property="Background" Value="#3B5D55"/></Trigger>
+
                     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Capsule" Property="Opacity" Value="0.6"/></Trigger>
                     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Capsule" Property="Opacity" Value="0.35"/></Trigger>
                 </ControlTemplate.Triggers>
@@ -71,7 +71,7 @@
                 <Border Background="Transparent" Padding="8"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#E4FFF4"/></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="#E4FFF4"/></Trigger>
+
                     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
@@ -100,12 +100,12 @@
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckSurface" Property="Background" Value="#99E7C9"/><Setter TargetName="CheckSurface" Property="BorderBrush" Value="#99E7C9"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
                     <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#D1E9DF"/></Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CheckSurface" Property="BorderBrush" Value="#EBFFF6"/><Setter Property="Foreground" Value="#EBFFF6"/></Trigger>
+
                     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
-        <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource IconButton}"><Setter Property="Foreground" Value="#142C28"/><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#28483D"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Foreground" Value="#28483D"/></Trigger></Style.Triggers></Style>
+        <Style x:Key="HeaderButton" TargetType="Button" BasedOn="{StaticResource IconButton}"><Setter Property="Foreground" Value="#142C28"/><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#28483D"/></Trigger></Style.Triggers></Style>
     </Window.Resources>
     <Border x:Name="HudSurface" Margin="14" CornerRadius="44,44,16,16" BorderBrush="#8596E6C9" BorderThickness="1" RenderTransformOrigin="0.5,1">
         <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EB18282C" Offset="0"/><GradientStop Color="#F0111B23" Offset="1"/></LinearGradientBrush></Border.Background>
@@ -118,7 +118,7 @@
             <TextBlock Text="Better Audio UX" Foreground="#142C28" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,24,0"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button Style="{StaticResource HeaderButton}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Content="&#xE713;" FontSize="13" Click="AudioSettings_Click" ToolTip="Configuración general de audio" AutomationProperties.Name="Abrir configuración general de audio" Margin="0,0,3,0"/>
-                <Button Width="28" Height="28" Cursor="Hand" Click="Close_Click" ToolTip="Cerrar · Esc" AutomationProperties.Name="Cerrar overlay"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="CloseCircle" Background="#172B30" CornerRadius="14"><TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#BFF4DE" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>
+                <Button Width="28" Height="28" Cursor="Hand" Click="Close_Click" ToolTip="Cerrar · Esc" AutomationProperties.Name="Cerrar overlay"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="CloseCircle" Background="#172B30" CornerRadius="14"><TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#BFF4DE" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>
             </StackPanel>
         </Grid></Border>
         <Grid x:Name="OutputView" Grid.Row="1" Margin="12,8,12,6">
@@ -153,7 +153,7 @@
                                         <DoubleAnimation Storyboard.TargetName="DeviceSurface" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.14"/>
                                         <DoubleAnimation Storyboard.TargetName="DeviceSurface" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.14"/>
                                     </Storyboard></BeginStoryboard></Trigger.ExitActions></Trigger>
-                                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Light" Property="Opacity" Value="0.9"/></Trigger>
+
                                 </ControlTemplate.Triggers>
                             </ControlTemplate></Button.Template>
                         </Button>
@@ -204,7 +204,7 @@
                 </Border>
             </Grid>
         </Border>
-        <Border Grid.Row="3" BorderBrush="#527B6C" BorderThickness="0,1,0,0" Height="16" CornerRadius="0,0,15,15" Background="#96E6C9" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
+        <Border Grid.Row="3" BorderBrush="#193E34" BorderThickness="0,1,0,0" Height="16" CornerRadius="0,0,15,15" Background="#96E6C9" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
         <Grid x:Name="MixerView" Grid.Row="1" Grid.RowSpan="2" Margin="20,8,20,18">
             <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
