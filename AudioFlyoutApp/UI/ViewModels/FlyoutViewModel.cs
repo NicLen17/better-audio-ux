@@ -64,7 +64,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
     public string VolumeGlyph => _muted || _volume == 0 ? "\uE74F" : "\uE767";
     public string MuteLabel => _muted ? "Activar sonido (M)" : "Silenciar (M)";
     public string Message { get => _message; private set { _message = value; Notify(); Notify(nameof(HasMessage)); Notify(nameof(HudHeight)); } }
-    public double HudHeight => (IsMixerOpen || IsSettingsOpen ? 482 : 378) + (HasMessage ? 28 : 0);
+    public double HudHeight => (IsMixerOpen || IsSettingsOpen || IsMirrorOpen ? 482 : 378) + (HasMessage ? 28 : 0);
     public bool HasMessage => !string.IsNullOrEmpty(Message);
     public int Volume
     {
@@ -140,6 +140,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
             var target = Devices.FirstOrDefault(d => d.Id == selectedId) ?? Devices.FirstOrDefault(d => d.IsDefault) ?? Devices.FirstOrDefault();
             SetSelection(target is null ? -1 : Devices.IndexOf(target));
             Notify(nameof(HasDevices)); Notify(nameof(CanTestSound)); Notify(nameof(CanInteract)); Notify(nameof(DeviceCount));
+            await RefreshMirrorAsync(available);
             _ = RefreshSpatialAsync();
             if (IsMixerOpen) await RefreshMixerAsync();
         }
@@ -285,5 +286,3 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
         _sessionWriteTimer?.Stop();
     }
 }
-
-

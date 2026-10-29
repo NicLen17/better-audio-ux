@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
@@ -107,7 +107,7 @@ public partial class FlyoutWindow : Window
         }
         if (message == 0x020E) // WM_MOUSEHWHEEL, including horizontal mouse/trackpad input.
         {
-            if (ViewModel.IsMixerOpen || ViewModel.IsSettingsOpen) return IntPtr.Zero;
+            if (ViewModel.IsMixerOpen || ViewModel.IsSettingsOpen || ViewModel.IsMirrorOpen) return IntPtr.Zero;
             _carouselWheel += (short)((wParam.ToInt64() >> 16) & 0xFFFF);
             while (Math.Abs(_carouselWheel) >= 120)
             {
@@ -128,6 +128,7 @@ public partial class FlyoutWindow : Window
         HudSurface.BeginAnimation(OpacityProperty, null);
         HudSurface.Opacity = 0;
         IsPinned = false; KeepOpen = false; UpdatePin();
+        ViewModel.CloseMirror();
         ViewModel.CloseSettings();
         _ = ViewModel.CloseMixerAsync();
         Dismissed?.Invoke(this, EventArgs.Empty);
@@ -165,7 +166,8 @@ public partial class FlyoutWindow : Window
     private void Order_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || ViewModel.SelectedDevice is not { } selected) return;
-        var menu = new ContextMenu { PlacementTarget = button };
+        var menu = new ContextMenu { PlacementTarget = button,
+            Style = (Style)FindResource(typeof(ContextMenu)), ItemContainerStyle = (Style)FindResource(typeof(MenuItem)) };
         menu.Items.Add(new MenuItem { Header = selected.DisplayName, IsEnabled = false });
         for (var index = 0; index < ViewModel.Devices.Count; index++)
         {
@@ -184,6 +186,9 @@ public partial class FlyoutWindow : Window
     }
     private async void Mute_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleMuteAsync();
     private async void Retry_Click(object sender, RoutedEventArgs e) => await ViewModel.RefreshAsync();
+    private async void Mirror_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenMirrorAsync();
+    private void MirrorBack_Click(object sender, RoutedEventArgs e) => ViewModel.CloseMirror();
+    private async void ToggleMirror_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleMirrorAsync();
     private async void Mixer_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenMixerAsync();
     private void AudioSettings_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:sound");
     private void MixerSettings_Click(object sender, RoutedEventArgs e) => OpenSettings("ms-settings:apps-volume");
@@ -210,6 +215,11 @@ public partial class FlyoutWindow : Window
     private async void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (!IsPinned || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt) || Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        if (ViewModel.IsMirrorOpen)
+        {
+            if (e.Key == Key.Escape) { ViewModel.CloseMirror(); e.Handled = true; }
+            return;
+        }
         if (ViewModel.IsSettingsOpen)
         {
             if (e.Key == Key.Escape) { ViewModel.CloseSettings(); e.Handled = true; }

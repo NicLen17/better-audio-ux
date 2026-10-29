@@ -90,3 +90,11 @@ The portable package is unsigned and has no installer or updater. Simulated disc
 ## Third-party distribution
 
 SoundVolumeCommandLine is Nir Sofer freeware. Its terms require unchanged redistribution with all original files and prohibit sale or inclusion in a commercial product. This free/personal package preserves the original readme and other vendor files. A commercial distribution must replace that backend or obtain permission from the author. See the [original license and documentation](https://www.nirsoft.net/utils/sound_volume_command_line.html) and [third-party notices](../THIRD-PARTY-NOTICES.md). Do not translate or modify bundled third-party license files.
+
+## Audio mirroring
+
+`IAudioMirrorService` exposes a single fixed source/destination pair. Capture and playback are created and disposed on the existing audio apartment. NAudio's WASAPI loopback recorder requests 48 kHz float stereo from the Windows mixer, including downmixing surround headsets. Shared playback lets Windows convert to the destination format. `VolumeSampleProvider` changes only the copy gain; master levels and the default endpoint are untouched.
+
+The transfer buffer is limited to 400 ms. Capture clears a backlog exceeding 150 ms to prevent accumulated delay after a driver stall or clock drift. This is a best-effort live copy rather than sample-synchronized multi-device playback. Worker stop callbacks queue cleanup onto the apartment and check the capture identity so old events cannot stop a replacement stream. Endpoint release and application shutdown also clean up both workers. No automatic restart or persistent routing is applied.
+
+Regression tests cover the panel state, invalid pairs, serialization, copy volume, interruption, and recovery. Run `AudioFlyoutApp.Tests.dll --mirror-live` for a hardware test: it plays short chimes on the current default, copies them at 25% to another audible endpoint, measures destination loopback audio, verifies copy silence at 0%, and checks restart/worker-stop cleanup and preservation of endpoint settings. It requires two active outputs and no unrelated audio on the destination. `--render` also writes `artifacts/hud-mirror-preview.png`.

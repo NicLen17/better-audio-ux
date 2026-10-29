@@ -110,6 +110,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
 
     private void Release(string id)
     {
+        if (_mirrorState.SourceId == id || _mirrorState.TargetId == id) StopMirror("La duplicación se detuvo porque se desconectó una salida.");
         if (_testDeviceId == id) StopTestSound();
         if (_watchedEndpoint == id) StopWatchingSessions();
         var device = _devices[id];
@@ -129,6 +130,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
         {
             try
             {
+                StopMirror();
                 StopTestSound();
                 StopWatchingSessions();
                 foreach (var id in _devices.Keys.ToArray()) Release(id);

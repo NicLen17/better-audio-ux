@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -9,7 +9,10 @@ namespace BetterAudio.Services;
 // A GUID-owned Shell icon exposes its actual rectangle without private framework reflection.
 internal sealed class NativeTrayIcon : IDisposable
 {
-    private static readonly Guid Identity = new("47EA98F3-4B57-4FD1-B2AC-AB4A45101293");
+    // Explorer associates GUID icons with executable paths. Test and portable builds
+    // must not register the same GUID from different executables.
+    private static readonly Guid Identity = new(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes((Environment.ProcessPath ?? "BetterAudio").ToUpperInvariant())).AsSpan(0, 16));
     private const int Callback = 0x803D;
     private readonly HwndSource _source;
     private readonly Icon _image;
@@ -43,7 +46,7 @@ internal sealed class NativeTrayIcon : IDisposable
     {
         _image = image;
         _identity = identity ?? Identity;
-        _source = new HwndSource(new HwndSourceParameters("Better Audio · Tray") { WindowStyle = 0, Width = 0, Height = 0 });
+        _source = new HwndSource(new HwndSourceParameters("Better Audio Â· Tray") { WindowStyle = 0, Width = 0, Height = 0 });
         _taskbarCreated = RegisterWindowMessage("TaskbarCreated");
         _source.AddHook(WindowProc);
         try { AddIcon(); }
@@ -60,7 +63,7 @@ internal sealed class NativeTrayIcon : IDisposable
         var data = Data();
         if (!Shell_NotifyIconW(0, ref data)) throw new Win32Exception(Marshal.GetLastWin32Error(), "No se pudo crear el icono de audio.");
         if (!Shell_NotifyIconW(4, ref data))
-        { Shell_NotifyIconW(2, ref data); throw new InvalidOperationException("Windows no aceptó el protocolo de bandeja."); }
+        { Shell_NotifyIconW(2, ref data); throw new InvalidOperationException("Windows no aceptÃ³ el protocolo de bandeja."); }
     }
     public Rectangle? Bounds
     {

@@ -41,6 +41,7 @@ public sealed partial class FlyoutViewModel
     }
     public async Task OpenMixerAsync()
     {
+        CloseMirror();
         _isMixerOpen = true; _mixerVersion++; Message = "";
         Notify(nameof(IsMixerOpen)); Notify(nameof(HudHeight));
         await RefreshMixerAsync();

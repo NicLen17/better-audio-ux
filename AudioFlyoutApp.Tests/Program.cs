@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows.Threading;
 using BetterAudio.Core.Audio;
 using BetterAudio.Core.Models;
@@ -31,9 +31,10 @@ internal static class Program
                 if (args.Contains("--render")) await RenderHudAsync(dispatcher);
                 else if (args.Contains("--ui") || args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo")) await PreviewAsync(dispatcher, args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo"), args.Contains("--ui-mixer-demo"));
                 else if (args.Contains("--spatial-roundtrip")) await SpatialRoundtripAsync();
+                else if (args.Contains("--mirror-live")) await MirrorLiveAsync();
                 else if (args.Contains("--test-sound-live")) await TestSoundLiveAsync();
                 else if (args.Contains("--live")) await LiveAsync();
-                else { AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
+                else { await MirrorAsync(dispatcher); AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
                 Console.WriteLine($"PASS: {_assertions} assertions");
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); exitCode = 1; }
@@ -49,6 +50,104 @@ internal static class Program
         Console.WriteLine("PASS: " + reason);
     }
     private static DeviceSnapshot Device(string id, bool active = false, int volume = 50) => new(id, id, "Test", "", volume, false, active);
+    private static async Task MirrorAsync(Dispatcher dispatcher)
+    {
+        using var audio = new FakeAudio { Devices = [Device("A", true), Device("B")] };
+        using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(false));
+        await vm.OpenMirrorAsync();
+        Check(vm.IsMirrorOpen && vm.HudHeight == 482 && vm.MirrorSource?.Id == "A" && vm.MirrorTarget?.Id == "B", "Mirror opens with current source and a different destination");
+        vm.MirrorTarget = vm.MirrorSource;
+        Check(!vm.CanToggleMirror, "Mirror cannot feed an endpoint back into itself");
+        vm.MirrorTarget = vm.MirrorDevices.Single(d => d.Id == "B");
+        var start = vm.ToggleMirrorAsync();
+        await vm.ToggleMirrorAsync();
+        await start;
+        Check(audio.MirrorStarts == 1 && vm.IsMirroring && !vm.CanConfigureMirror && audio.Commits == 0, "Mirror start is serialized and preserves the Windows default");
+        vm.MirrorCopyVolume = 140;
+        Check(vm.MirrorCopyVolume == 100 && audio.MirrorVolume == 100 && audio.Writes.Count == 0, "Copy volume clamps without changing endpoint master volumes");
+        vm.CloseMirror(); vm.MoveSelection(1); await vm.OpenSettingsAsync(); await vm.OpenMirrorAsync();
+        Check(vm.IsMirroring && vm.MirrorSource?.Id == "A" && !vm.IsSettingsOpen, "Mirroring survives closing the panel and browsing other devices with fixed endpoints");
+        await vm.ToggleMirrorAsync();
+        Check(!vm.IsMirroring && vm.CanConfigureMirror, "Stopping releases configuration for another pair");
+        audio.FailMirror = true; await vm.ToggleMirrorAsync();
+        Check(vm.HasMessage && !vm.IsMirroring && vm.CanToggleMirror, "Failed start reports an error and permits retry");
+        audio.FailMirror = false; await vm.ToggleMirrorAsync();
+        audio.MirrorState = new(Error: "Salida desconectada"); audio.Devices.RemoveAll(d => d.Id == "B"); await vm.RefreshAsync();
+        Check(!vm.IsMirroring && vm.MirrorStatus == "Salida desconectada" && !vm.CanToggleMirror, "Disconnection clears active UI and reports backend stop reason");
+        audio.Devices.Add(Device("B")); await vm.RefreshAsync();
+        Check(vm.CanToggleMirror && !vm.IsMirroring, "Reconnection allows manual restart without resuming unexpectedly");
+        await vm.OpenMixerAsync();
+        Check(!vm.IsMirrorOpen && vm.IsMixerOpen, "Mixer and mirror panels are mutually exclusive");
+        using var filteredAudio = new FakeAudio { Devices = [Device("A", true), Device("B"), Device("C")] };
+        using var filteredVm = new FlyoutViewModel(filteredAudio, dispatcher, new MemoryPreferences(false) { HiddenDevices = new Dictionary<string, string> { ["B"] = "B", ["C"] = "C" } });
+        await filteredVm.OpenMirrorAsync();
+        Check(filteredVm.MirrorDevices.Count == 1 && filteredVm.MirrorTarget is null && !filteredVm.CanToggleMirror, "Hidden outputs are excluded from both mirror selectors and fallback destinations");
+        await filteredVm.RestoreDeviceAsync("B");
+        Check(filteredVm.MirrorDevices.Select(d => d.Id).SequenceEqual(["A", "B"]) && filteredVm.CanToggleMirror, "Restoring an output makes it available to mirror without reopening");
+        await filteredVm.ToggleMirrorAsync(); filteredVm.MoveSelection(1); await filteredVm.HideSelectedDeviceAsync();
+        Check(filteredVm.MirrorDevices.All(d => d.Id != "B") && filteredVm.MirrorTarget is null && filteredVm.IsMirroring && filteredVm.MirrorStatus.Contains("B"), "Hiding an active destination filters the list without misreporting or interrupting the route");
+        await filteredVm.ToggleMirrorAsync();
+        Check(!filteredVm.IsMirroring && !filteredVm.CanToggleMirror, "An active copy can be stopped even after hiding its destination");
+        using var native = new AudioDeviceManager();
+        try { await native.StartMirrorAsync("same", "same", 70); Check(false, "Same endpoint rejected"); }
+        catch (InvalidOperationException) { Check(!(await native.GetMirrorStateAsync()).IsActive, "Native backend rejects self-copy before opening audio devices"); }
+    }
+    private static async Task MirrorLiveAsync()
+    {
+        using var audio = new AudioDeviceManager();
+        var devices = await audio.GetDevicesAsync();
+        foreach (var d in devices) Console.WriteLine($"Output: {d.Name} muted={d.Muted} volume={d.Volume}");
+        var source = devices.First(d => d.IsDefault);
+        var target = devices.Where(d => d.Id != source.Id && !d.Muted && d.Volume > 0)
+            .OrderBy(d => d.Name.Contains("Steam", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ThenBy(d => d.Name.StartsWith("Altavoces", StringComparison.CurrentCultureIgnoreCase) ? 0 : 1).First();
+        using var enumerator = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+        using var endpoint = enumerator.GetDevice(target.Id);
+        using var sourceEndpoint = enumerator.GetDevice(source.Id);
+        using var sourceClient = sourceEndpoint.CreateAudioClient();
+        using var targetClient = endpoint.CreateAudioClient();
+        Console.WriteLine($"Mirror formats: {sourceClient.MixFormat} -> {targetClient.MixFormat}");
+        using var capture = new NAudio.Wave.WasapiRecorderBuilder().WithDevice(endpoint).WithLoopbackCapture().WithFormat(NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 2)).Build();
+        double peak = 0;
+        var meterLock = new object();
+        capture.DataAvailable += (data, flags, position, timestamp) =>
+        {
+            double packetPeak = 0;
+            for (var i = 0; i + 4 <= data.Length; i += 4) packetPeak = Math.Max(packetPeak, Math.Abs(BitConverter.ToSingle(data.Slice(i, 4))));
+            lock (meterLock) peak = Math.Max(peak, packetPeak);
+        };
+        capture.StartRecording();
+        try
+        {
+            await audio.StartMirrorAsync(source.Id, target.Id, 25);
+            await audio.PlayTestSoundAsync(source.Id);
+            await Task.Delay(300);
+            Check((await audio.GetMirrorStateAsync()).IsActive, "Native mirror stays active while playing a source chime");
+            Console.WriteLine($"Destination peak: {peak}");
+            Check(peak > .0001, "Destination loopback receives non-silent mirrored audio");
+            await audio.SetMirrorVolumeAsync(0);
+            await Task.Delay(500);
+            lock (meterLock) peak = 0;
+            await audio.PlayTestSoundAsync(source.Id);
+            await Task.Delay(300);
+            Console.WriteLine($"Muted destination peak: {peak}");
+            Check(peak < .0001, "Zero copy volume silences destination while the source still plays");
+            await audio.StopMirrorAsync();
+            Check(!(await audio.GetMirrorStateAsync()).IsActive, "Native mirror stops cleanly");
+            await audio.StartMirrorAsync(source.Id, target.Id, 0);
+            await audio.StartMirrorAsync(source.Id, target.Id, 0);
+            await Task.Delay(150);
+            Check((await audio.GetMirrorStateAsync()).IsActive, "Old stop callbacks cannot stop a replacement mirror");
+            var worker = (NAudio.Wave.WasapiRecorder)typeof(AudioDeviceManager).GetField("_mirrorCapture", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(audio)!;
+            worker.StopRecording();
+            await Task.Delay(250);
+            var stopped = await audio.GetMirrorStateAsync();
+            Check(!stopped.IsActive && stopped.Error is not null, "Unexpected capture stop releases the copy and reports the interruption");
+            var after = await audio.GetDevicesAsync();
+            Check(after.Single(d => d.IsDefault).Id == source.Id && after.All(d => devices.Any(old => old.Id == d.Id && old.Volume == d.Volume && old.Muted == d.Muted)), "Live mirror preserves Windows default and endpoint levels");
+        }
+        finally { await audio.StopMirrorAsync(); }
+    }
     private static async Task TestSoundLiveAsync()
     {
         using var audio = new AudioDeviceManager();
@@ -342,10 +441,11 @@ internal static class Program
         var window = new FlyoutWindow(vm);
         try
         {
-            foreach (var view in new[] { "outputs", "mixer", "settings" })
+            foreach (var view in new[] { "outputs", "mixer", "settings", "mirror" })
             {
                 if (view == "mixer") await vm.OpenMixerAsync();
                 if (view == "settings") await vm.OpenSettingsAsync();
+                if (view == "mirror") await vm.OpenMirrorAsync();
                 var root = (System.Windows.FrameworkElement)window.Content;
                 root.Measure(new System.Windows.Size(408, vm.HudHeight));
                 root.Arrange(new System.Windows.Rect(0, 0, 408, vm.HudHeight)); root.UpdateLayout();
@@ -355,9 +455,51 @@ internal static class Program
                 encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
                 var path = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", view == "outputs" ? "hud-preview.png" : $"hud-{view}-preview.png");
                 using var output = File.Create(path); encoder.Save(output); Console.WriteLine(path);
+                if (view == "mirror")
+                {
+                    window.Show();
+                    var combo = (System.Windows.Controls.ComboBox)window.FindName("MirrorSourceInput");
+                    combo.IsDropDownOpen = true;
+                    await Task.Delay(80);
+                    var popup = (System.Windows.Controls.Primitives.Popup)combo.Template.FindName("PART_Popup", combo);
+                    SaveControlPreview((System.Windows.FrameworkElement)popup.Child, "hud-dropdown-preview.png");
+                    combo.IsDropDownOpen = false;
+                    var menu = new System.Windows.Controls.ContextMenu
+                    {
+                        PlacementTarget = combo,
+                        Style = (System.Windows.Style)window.FindResource(typeof(System.Windows.Controls.ContextMenu)),
+                        ItemContainerStyle = (System.Windows.Style)window.FindResource(typeof(System.Windows.Controls.MenuItem))
+                    };
+                    menu.Items.Add(new System.Windows.Controls.MenuItem { Header = "Corsair HS80 MAX", IsEnabled = false });
+                    menu.Items.Add(new System.Windows.Controls.MenuItem { Header = "Posición 1", IsCheckable = true, IsChecked = true });
+                    menu.Items.Add(new System.Windows.Controls.MenuItem { Header = "Posición 2", IsCheckable = true });
+                    menu.IsOpen = true; await Task.Delay(80);
+                    SaveControlPreview(menu, "hud-order-menu-preview.png");
+                    menu.IsOpen = false;
+                    using var tray = new System.Windows.Forms.ContextMenuStrip();
+                    TrayMenuRenderer.Apply(tray);
+                    tray.Items.Add("Abrir Better Audio"); tray.Items.Add("Mezclador de volumen");
+                    tray.Items.Add(new System.Windows.Forms.ToolStripSeparator()); tray.Items.Add("Salir");
+                    foreach (System.Windows.Forms.ToolStripItem item in tray.Items) item.Padding = new System.Windows.Forms.Padding(10, 5, 10, 5);
+                    tray.Show(20, 20); await Task.Delay(80);
+                    using var trayBitmap = new System.Drawing.Bitmap(tray.Width, tray.Height);
+                    tray.DrawToBitmap(trayBitmap, new System.Drawing.Rectangle(0, 0, tray.Width, tray.Height));
+                    trayBitmap.Save(Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "hud-tray-menu-preview.png"));
+                    tray.Close();
+                }
             }
         }
         finally { window.CloseForExit(); }
+    }
+    private static void SaveControlPreview(System.Windows.FrameworkElement control, string file)
+    {
+        control.UpdateLayout();
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(control.ActualWidth * 2), (int)Math.Ceiling(control.ActualHeight * 2), 192, 192, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(control);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(Directory.GetCurrentDirectory(), "artifacts", file));
+        encoder.Save(stream);
     }
     private static async Task MixerAndSpatialAsync(Dispatcher dispatcher)
     {
@@ -554,8 +696,22 @@ internal static class Program
         await dismissed.Task;
         window.CloseForExit();
     }
-    private sealed class FakeAudio : IAudioDeviceManager, IAudioMixerService
+    private sealed class FakeAudio : IAudioDeviceManager, IAudioMixerService, IAudioMirrorService
     {
+        public AudioMirrorState MirrorState { get; set; } = new();
+        public int MirrorVolume { get; private set; }
+        public int MirrorStarts { get; private set; }
+        public bool FailMirror { get; set; }
+        public Task<AudioMirrorState> GetMirrorStateAsync() => Task.FromResult(MirrorState);
+        public async Task StartMirrorAsync(string source, string target, int volume)
+        {
+            MirrorStarts++;
+            await Task.Delay(20);
+            if (FailMirror) throw new InvalidOperationException("Disconnected");
+            MirrorState = new(source, target); MirrorVolume = volume;
+        }
+        public Task StopMirrorAsync() { MirrorState = new(); return Task.CompletedTask; }
+        public Task SetMirrorVolumeAsync(int volume) { MirrorVolume = volume; return Task.CompletedTask; }
         public List<DeviceSnapshot> Devices { get; set; } = [];
         public int Commits { get; private set; }
         public List<(string Id, int Volume)> Writes { get; } = [];
@@ -626,6 +782,3 @@ internal static class Program
         public IReadOnlyDictionary<string, string> HiddenDevices { get; set; } = new Dictionary<string, string>();
     }
 }
-
-
-

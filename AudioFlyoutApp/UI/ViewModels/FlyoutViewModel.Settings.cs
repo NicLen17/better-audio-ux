@@ -28,6 +28,7 @@ public sealed partial class FlyoutViewModel
     }
     public async Task OpenSettingsAsync()
     {
+        CloseMirror();
         await CloseMixerAsync();
         _isSettingsOpen = true;
         Message = "";

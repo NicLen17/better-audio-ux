@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Threading;
 using BetterAudio.UI.Flyout;
@@ -27,10 +27,12 @@ public sealed class SystemTrayService : IDisposable
         using var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/BetterAudio;component/Assets/audio.ico")).Stream;
         _image = new Icon(resource);
         _menu = new Forms.ContextMenuStrip();
+        TrayMenuRenderer.Apply(_menu);
         _menu.Items.Add("Abrir Better Audio", null, (_, _) => Show(true));
         _menu.Items.Add("Mezclador de volumen", null, (_, _) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:apps-volume") { UseShellExecute = true }));
         _menu.Items.Add(new Forms.ToolStripSeparator());
         _menu.Items.Add("Salir", null, (_, _) => ExitApplication());
+        foreach (Forms.ToolStripItem item in _menu.Items) item.Padding = new Forms.Padding(10, 5, 10, 5);
         _menu.Opening += (_, _) => { _contextOpen = true; _hover.Stop(); _window.Dismiss(); };
         _menu.Closed += (_, _) => { _contextOpen = false; _dismissedAt = DateTime.UtcNow; };
         _icon = new NativeTrayIcon(_image);
