@@ -10,6 +10,7 @@ public interface IAudioDeviceManager : IDisposable
     event EventHandler? Changed;
     Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync();
     Task SetDefaultAsync(string id);
+    Task PlayTestSoundAsync(string id);
     Task SetVolumeAsync(string id, int volume);
     Task SetMuteAsync(string id, bool muted);
 }

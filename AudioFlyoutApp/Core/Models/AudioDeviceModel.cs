@@ -18,6 +18,8 @@ public sealed class AudioDeviceModel : INotifyPropertyChanged
     public bool Muted { get; private set; }
     public bool IsDefault { get; private set; }
     public string Status => IsDefault ? "● EN USO" : "DISPONIBLE";
+    private int _order;
+    public int Order { get => _order; set { if (_order == value) return; _order = value; OnPropertyChanged(); } }
     private bool _isPreview;
     public bool IsPreview { get => _isPreview; set { _isPreview = value; OnPropertyChanged(); } }
 

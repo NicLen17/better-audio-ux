@@ -107,7 +107,7 @@ public partial class FlyoutWindow : Window
         }
         if (message == 0x020E) // WM_MOUSEHWHEEL, including horizontal mouse/trackpad input.
         {
-            if (ViewModel.IsMixerOpen) return IntPtr.Zero;
+            if (ViewModel.IsMixerOpen || ViewModel.IsSettingsOpen) return IntPtr.Zero;
             _carouselWheel += (short)((wParam.ToInt64() >> 16) & 0xFFFF);
             while (Math.Abs(_carouselWheel) >= 120)
             {
@@ -128,6 +128,7 @@ public partial class FlyoutWindow : Window
         HudSurface.BeginAnimation(OpacityProperty, null);
         HudSurface.Opacity = 0;
         IsPinned = false; KeepOpen = false; UpdatePin();
+        ViewModel.CloseSettings();
         _ = ViewModel.CloseMixerAsync();
         Dismissed?.Invoke(this, EventArgs.Empty);
     }
@@ -152,6 +153,35 @@ public partial class FlyoutWindow : Window
     private void Next_Click(object sender, RoutedEventArgs e) => ViewModel.MoveSelection(1);
     private async void Device_Click(object sender, RoutedEventArgs e)
     { if (sender is Button { DataContext: AudioDeviceModel device }) await ViewModel.CommitAsync(device); }
+    private async void InternalSettings_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenSettingsAsync();
+    private void SettingsBack_Click(object sender, RoutedEventArgs e) => ViewModel.CloseSettings();
+    private async void TestSound_Click(object sender, RoutedEventArgs e) => await ViewModel.TestSelectedSoundAsync();
+    private async void HideDevice_Click(object sender, RoutedEventArgs e) => await ViewModel.HideSelectedDeviceAsync();
+    private async void RestoreDevice_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: System.Collections.Generic.KeyValuePair<string, string> device })
+            await ViewModel.RestoreDeviceAsync(device.Key);
+    }
+    private void Order_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || ViewModel.SelectedDevice is not { } selected) return;
+        var menu = new ContextMenu { PlacementTarget = button };
+        menu.Items.Add(new MenuItem { Header = selected.DisplayName, IsEnabled = false });
+        for (var index = 0; index < ViewModel.Devices.Count; index++)
+        {
+            var position = index + 1;
+            var item = new MenuItem
+            {
+                Header = $"Posición {position}",
+                IsCheckable = true,
+                IsChecked = index == ViewModel.SelectedIndex
+            };
+            item.Click += (_, _) => ViewModel.SetSelectedPosition(position);
+            menu.Items.Add(item);
+        }
+        button.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
     private async void Mute_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleMuteAsync();
     private async void Retry_Click(object sender, RoutedEventArgs e) => await ViewModel.RefreshAsync();
     private async void Mixer_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenMixerAsync();
@@ -180,6 +210,11 @@ public partial class FlyoutWindow : Window
     private async void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (!IsPinned || Keyboard.Modifiers.HasFlag(ModifierKeys.Alt) || Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        if (ViewModel.IsSettingsOpen)
+        {
+            if (e.Key == Key.Escape) { ViewModel.CloseSettings(); e.Handled = true; }
+            return;
+        }
         var session = (Keyboard.FocusedElement as FrameworkElement)?.DataContext as MixerSessionModel;
         if (ViewModel.IsMixerOpen && e.Key is Key.Left or Key.Right or Key.Enter) return;
         if (e.Key == Key.Enter && Keyboard.FocusedElement is Button focused && focused.DataContext is not AudioDeviceModel) return;

@@ -117,12 +117,13 @@
             <Button x:Name="PinButton" Style="{StaticResource HeaderButton}" Foreground="#142C28" HorizontalAlignment="Left" Click="Pin_Click" ToolTip="Fijar panel: mantener abierto al usar otra aplicación" AutomationProperties.Name="Fijar o desfijar panel"><Viewbox Width="18" Height="18"><Path x:Name="PinShape" Data="M 6,2 L 18,2 L 16,5 L 16,11 L 20,15 L 13,15 L 12,23 L 11,15 L 4,15 L 8,11 L 8,5 Z" Stroke="#142C28" StrokeThickness="1.5" Fill="Transparent" StrokeLineJoin="Round"/></Viewbox></Button>
             <TextBlock Text="Better Audio UX" Foreground="#142C28" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,24,0"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Style="{StaticResource HeaderButton}" Content="⚙" Click="InternalSettings_Click" ToolTip="Configuración interna" AutomationProperties.Name="Configuración interna"/>
                 <Button Style="{StaticResource HeaderButton}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Content="&#xE713;" FontSize="13" Click="AudioSettings_Click" ToolTip="Configuración general de audio" AutomationProperties.Name="Abrir configuración general de audio" Margin="0,0,3,0"/>
                 <Button Width="28" Height="28" Cursor="Hand" Click="Close_Click" ToolTip="Cerrar · Esc" AutomationProperties.Name="Cerrar overlay"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="CloseCircle" Background="#172B30" CornerRadius="14"><TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="#BFF4DE" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CloseCircle" Property="Background" Value="#315248"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>
             </StackPanel>
         </Grid></Border>
         <Grid x:Name="OutputView" Grid.Row="1" Margin="12,8,12,6">
-            <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+            <Grid.Style><Style TargetType="Grid"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>
             <Grid.RowDefinitions><RowDefinition Height="148"/><RowDefinition Height="42"/><RowDefinition Height="42"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid x:Name="CarouselViewport" PreviewMouseWheel="Carousel_Wheel" ClipToBounds="True">
@@ -140,9 +141,11 @@
                                     <Ellipse x:Name="Light" Width="78" Height="78" Fill="#304F47" Opacity="0" HorizontalAlignment="Center" VerticalAlignment="Center"><Ellipse.Effect><BlurEffect Radius="15"/></Ellipse.Effect></Ellipse>
                                     <TextBlock x:Name="DeviceGlyph" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="52" Foreground="#B5E8D7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-12" Background="#80101C20" CornerRadius="8" Padding="6,2">
-                                        <TextBlock Text="{Binding Status}" FontSize="9" FontWeight="SemiBold" Foreground="#C7F8E7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" Foreground="#C7F8E7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
-                                    <Ellipse Width="5" Height="5" Fill="#B2F5D8" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5" Visibility="{Binding IsDefault, Converter={StaticResource VisibleIf}}"/>
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="#172B30" BorderBrush="#96E6C9" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,4,0">
+                                        <TextBlock Text="{Binding Order}" FontSize="12" FontWeight="SemiBold" Foreground="#C7F8E7" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
                                 </Grid>
                                 <ControlTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsPreview}" Value="True"><Setter TargetName="Light" Property="Opacity" Value="0.6"/><Setter TargetName="DeviceGlyph" Property="Foreground" Value="#C7F8E7"/><Setter TargetName="DeviceGlyph" Property="Effect"><Setter.Value><DropShadowEffect Color="#9CE8CC" BlurRadius="14" ShadowDepth="0" Opacity="0.25"/></Setter.Value></Setter></DataTrigger>
@@ -161,6 +164,9 @@
                 </ItemsControl>
                 <Button Style="{StaticResource IconButton}" Focusable="False" Content="‹" FontSize="23" HorizontalAlignment="Left" VerticalAlignment="Bottom" Click="Previous_Click" IsEnabled="{Binding HasDevices}" ToolTip="Anterior · ←" AutomationProperties.Name="Dispositivo anterior"/>
                 <Button Style="{StaticResource IconButton}" Focusable="False" Content="›" FontSize="23" HorizontalAlignment="Right" VerticalAlignment="Bottom" Click="Next_Click" IsEnabled="{Binding HasDevices}" ToolTip="Siguiente · →" AutomationProperties.Name="Dispositivo siguiente"/>
+                <Button Style="{StaticResource Pill}" Content="{Binding TestSoundLabel}" Padding="9,4" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Top" Click="TestSound_Click" IsEnabled="{Binding CanTestSound}" ToolTip="Reproducir un sonido breve en la salida seleccionada" AutomationProperties.Name="Probar salida seleccionada"/>
+                <Button Style="{StaticResource Pill}" Content="Ocultar" Padding="9,4" FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Top" Click="HideDevice_Click" IsEnabled="{Binding HasDevices}" ToolTip="Ocultar salida; restaurar desde Configuración"/>
+                <Button Style="{StaticResource Pill}" Content="Ordenar" Padding="9,4" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Top" Click="Order_Click" IsEnabled="{Binding HasDevices}" ToolTip="Elegir la posición del dispositivo seleccionado" AutomationProperties.Name="Ordenar dispositivo seleccionado"/>
                 <Button Content="Buscar salidas" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Retry_Click">
                     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource Pill}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
                 </Button>
@@ -176,7 +182,7 @@
             <TextBlock Grid.Row="3" Text="{Binding Message}" Foreground="#EBC9AA" Background="#ED17242B" FontSize="9" TextAlignment="Center" TextWrapping="Wrap" VerticalAlignment="Top" MaxWidth="330" Margin="0,2,0,0" Visibility="{Binding HasMessage, Converter={StaticResource VisibleIf}}" AutomationProperties.LiveSetting="Polite"/>
         </Grid>
         <Border Grid.Row="2" CornerRadius="0" Background="#96E6C9" Height="44">
-            <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+            <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
             <Grid Margin="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -204,7 +210,23 @@
                 </Border>
             </Grid>
         </Border>
-        <Border Grid.Row="3" BorderBrush="#193E34" BorderThickness="0,1,0,0" Height="16" CornerRadius="0,0,15,15" Background="#96E6C9" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
+        <Border Grid.Row="3" Height="16" CornerRadius="0,0,15,15" Background="#2D5C4E" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
+        <Grid Grid.Row="1" Grid.RowSpan="3" Margin="20,8,20,18">
+            <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
+            <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="48"/><RowDefinition Height="46"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Button Style="{StaticResource IconButton}" Content="&#xE72B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Left" Click="SettingsBack_Click" ToolTip="Volver a dispositivos · Esc" AutomationProperties.Name="Volver a dispositivos"/>
+            <TextBlock Text="Configuración" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="1" Content="Iniciar Better Audio con Windows" FontSize="14" Foreground="#D1E9DF" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" VerticalAlignment="Center" ToolTip="Se iniciará en la bandeja. Conservá la app en esta carpeta."/>
+            <StackPanel Grid.Row="2"><TextBlock Text="Dispositivos ocultos" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Podés volver a mostrarlos desde esta lista." FontSize="10" Foreground="#91B2A7" Margin="0,5,0,0"/></StackPanel>
+            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding HiddenDevices}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Background="#263B4D46" CornerRadius="12" Padding="10" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Button Grid.Column="1" Style="{StaticResource Pill}" Content="Mostrar" FontSize="10" Padding="9,6" Click="RestoreDevice_Click" AutomationProperties.Name="{Binding Value, StringFormat=Mostrar {0}}"/>
+                </Grid></Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+            <TextBlock Grid.Row="3" Text="No hay dispositivos ocultos." FontSize="12" Foreground="#91B2A7" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasHiddenDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+            <TextBlock Grid.Row="4" Text="{Binding Message}" Foreground="#EBC9AA" FontSize="10" TextWrapping="Wrap" Visibility="{Binding HasMessage, Converter={StaticResource VisibleIf}}"/>
+        </Grid>
         <Grid x:Name="MixerView" Grid.Row="1" Grid.RowSpan="2" Margin="20,8,20,18">
             <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RenderTransform><TranslateTransform/></Grid.RenderTransform>

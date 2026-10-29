@@ -110,6 +110,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
 
     private void Release(string id)
     {
+        if (_testDeviceId == id) StopTestSound();
         if (_watchedEndpoint == id) StopWatchingSessions();
         var device = _devices[id];
         try { device.AudioEndpointVolume.OnVolumeNotification -= VolumeChanged; }
@@ -122,17 +123,25 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
         if (_disposed) return;
         _disposed = true;
         var dispatcher = _ready.Task.GetAwaiter().GetResult();
-        dispatcher.Invoke(() =>
+        // Never block the UI indefinitely on a native audio driver during shutdown.
+        // The apartment is a background thread, so a stuck driver cannot keep the app alive.
+        var cleanup = dispatcher.InvokeAsync(() =>
         {
-            StopWatchingSessions();
-            foreach (var id in _devices.Keys.ToArray()) Release(id);
-            if (_enumerator is not null)
+            try
             {
+                StopTestSound();
+                StopWatchingSessions();
+                foreach (var id in _devices.Keys.ToArray()) Release(id);
                 _notifications?.Dispose();
-                _enumerator.Dispose();
+                _enumerator?.Dispose();
             }
-            dispatcher.BeginInvokeShutdown(DispatcherPriority.Send);
-        });
-        _thread.Join(TimeSpan.FromSeconds(2));
+            finally { dispatcher.BeginInvokeShutdown(DispatcherPriority.Send); }
+        }, DispatcherPriority.Send);
+        try
+        {
+            if (!cleanup.Task.Wait(TimeSpan.FromSeconds(2)))
+                Log.Write("Audio cleanup timed out; continuing application exit");
+        }
+        catch (Exception ex) { Log.Write("Audio cleanup failed", ex); }
     }
 }

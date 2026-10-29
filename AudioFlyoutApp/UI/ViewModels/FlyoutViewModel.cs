@@ -20,6 +20,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
     private readonly DispatcherTimer _volumeTimer;
     private readonly IUserPreferences _preferences;
     private bool _autoSwitch;
+    private List<string> _deviceOrder;
     private string? _pendingDefaultId;
     private Task _switchTask = Task.CompletedTask;
     private int _selectedIndex = -1;
@@ -63,7 +64,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
     public string VolumeGlyph => _muted || _volume == 0 ? "\uE74F" : "\uE767";
     public string MuteLabel => _muted ? "Activar sonido (M)" : "Silenciar (M)";
     public string Message { get => _message; private set { _message = value; Notify(); Notify(nameof(HasMessage)); Notify(nameof(HudHeight)); } }
-    public double HudHeight => (IsMixerOpen ? 482 : 378) + (HasMessage ? 28 : 0);
+    public double HudHeight => (IsMixerOpen || IsSettingsOpen ? 482 : 378) + (HasMessage ? 28 : 0);
     public bool HasMessage => !string.IsNullOrEmpty(Message);
     public int Volume
     {
@@ -79,11 +80,15 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
         }
     }
 
-    public FlyoutViewModel(IAudioDeviceManager audio, Dispatcher dispatcher, IUserPreferences? preferences = null)
+    public FlyoutViewModel(IAudioDeviceManager audio, Dispatcher dispatcher, IUserPreferences? preferences = null, IStartupService? startup = null)
     {
         _audio = audio; _dispatcher = dispatcher;
         _preferences = preferences ?? new UserPreferences();
         _autoSwitch = _preferences.AutoSwitchOnNavigation;
+        _deviceOrder = _preferences.DeviceOrder.ToList();
+        _hiddenDevices = new Dictionary<string, string>(_preferences.HiddenDevices);
+        _startup = startup ?? new StartupService();
+        UpdateHiddenDevices();
         _refreshTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromMilliseconds(100) };
         _volumeTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = TimeSpan.FromMilliseconds(45) };
         _refreshTimer.Tick += async (_, _) => { _refreshTimer.Stop(); await RefreshAsync(); };
@@ -114,7 +119,12 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
         _refreshCompletion = completion;
         try
         {
-            var snapshots = await _audio.GetDevicesAsync();
+            var available = await _audio.GetDevicesAsync();
+            var snapshots = available.Where(d => !_hiddenDevices.ContainsKey(d.Id)).OrderBy(d =>
+            {
+                var rank = _deviceOrder.IndexOf(d.Id);
+                return rank < 0 ? int.MaxValue : rank;
+            }).ToList();
             if (_disposed) return;
             var followDefault = focusDefault || (_autoSwitch && !IsBusy && _pendingDefaultId is null);
             var selectedId = followDefault ? null : SelectedDevice?.Id;
@@ -129,7 +139,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
             }
             var target = Devices.FirstOrDefault(d => d.Id == selectedId) ?? Devices.FirstOrDefault(d => d.IsDefault) ?? Devices.FirstOrDefault();
             SetSelection(target is null ? -1 : Devices.IndexOf(target));
-            Notify(nameof(HasDevices)); Notify(nameof(CanInteract)); Notify(nameof(DeviceCount));
+            Notify(nameof(HasDevices)); Notify(nameof(CanTestSound)); Notify(nameof(CanInteract)); Notify(nameof(DeviceCount));
             _ = RefreshSpatialAsync();
             if (IsMixerOpen) await RefreshMixerAsync();
         }
@@ -146,7 +156,7 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
     private void SetSelection(int index)
     {
         _selectedIndex = index;
-        for (var i = 0; i < Devices.Count; i++) Devices[i].IsPreview = i == index;
+        for (var i = 0; i < Devices.Count; i++) { Devices[i].IsPreview = i == index; Devices[i].Order = i + 1; }
         var selected = SelectedDevice;
         if (selected is null || _displayedVolumeId != selected.Id ||
             (_writingVolumeId != selected.Id && !_pendingVolumes.ContainsKey(selected.Id)))
@@ -169,6 +179,22 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
         SetSelection(((_selectedIndex + delta) % Devices.Count + Devices.Count) % Devices.Count);
         if (_autoSwitch && SelectedDevice is { } device) _ = RequestSwitchAsync(device.Id);
     }
+    public void SetSelectedPosition(int position)
+    {
+        if (SelectedDevice is not { } selected || position < 1 || position > Devices.Count || position == _selectedIndex + 1) return;
+        Devices.Move(_selectedIndex, position - 1);
+        // Keep disconnected endpoints in their saved slots so reconnecting restores their place.
+        var visible = new Queue<string>(Devices.Select(d => d.Id));
+        var connected = Devices.Select(d => d.Id).ToHashSet();
+        var order = _deviceOrder.Select(id => connected.Contains(id) ? visible.Dequeue() : id).ToList();
+        order.AddRange(visible);
+        _deviceOrder = order;
+        SetSelection(Devices.IndexOf(selected));
+        Message = "";
+        try { _preferences.DeviceOrder = order; }
+        catch (Exception ex) { ReportError("El orden se aplicará solo durante esta sesión.", ex); }
+    }
+
     public void AdjustVolume(int delta) { if (CanInteract) Volume += delta; }
 
     public Task CommitAsync(AudioDeviceModel? device = null)
@@ -202,6 +228,25 @@ public sealed partial class FlyoutViewModel : INotifyPropertyChanged, IDisposabl
             }
         }
         finally { IsBusy = false; }
+    }
+
+    private bool _isTestingSound;
+    public bool CanTestSound => HasDevices && !_isTestingSound;
+    public string TestSoundLabel => _isTestingSound ? "Probando…" : "Probar";
+    public async Task TestSelectedSoundAsync()
+    {
+        if (!CanTestSound || SelectedDevice is not { } device) return;
+        if (_muted || _volume == 0)
+        {
+            Message = "Activá el sonido y subí el volumen de esta salida para probarla.";
+            return;
+        }
+        _isTestingSound = true;
+        Notify(nameof(CanTestSound)); Notify(nameof(TestSoundLabel));
+        Message = "";
+        try { await _audio.PlayTestSoundAsync(device.Id); }
+        catch (Exception ex) { if (!_disposed) ReportError("No se pudo probar esta salida. Comprobá su conexión.", ex); }
+        finally { _isTestingSound = false; Notify(nameof(CanTestSound)); Notify(nameof(TestSoundLabel)); }
     }
 
     public async Task ToggleMuteAsync()

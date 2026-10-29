@@ -12,6 +12,15 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Contains("--exit-smoke"))
+        {
+            var app = new BetterAudio.App();
+            app.InitializeComponent();
+            var exitTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            exitTimer.Tick += (_, _) => { exitTimer.Stop(); SystemTrayService.ExitApplication(); };
+            exitTimer.Start();
+            return app.Run();
+        }
         var dispatcher = Dispatcher.CurrentDispatcher;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var exitCode = 0;
@@ -22,8 +31,9 @@ internal static class Program
                 if (args.Contains("--render")) await RenderHudAsync(dispatcher);
                 else if (args.Contains("--ui") || args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo")) await PreviewAsync(dispatcher, args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo"), args.Contains("--ui-mixer-demo"));
                 else if (args.Contains("--spatial-roundtrip")) await SpatialRoundtripAsync();
+                else if (args.Contains("--test-sound-live")) await TestSoundLiveAsync();
                 else if (args.Contains("--live")) await LiveAsync();
-                else { await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
+                else { AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
                 Console.WriteLine($"PASS: {_assertions} assertions");
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); exitCode = 1; }
@@ -39,6 +49,140 @@ internal static class Program
         Console.WriteLine("PASS: " + reason);
     }
     private static DeviceSnapshot Device(string id, bool active = false, int volume = 50) => new(id, id, "Test", "", volume, false, active);
+    private static async Task TestSoundLiveAsync()
+    {
+        using var audio = new AudioDeviceManager();
+        var before = await audio.GetDevicesAsync();
+        var target = before.FirstOrDefault(d => d.IsDefault) ?? throw new Exception("No default output");
+        await audio.PlayTestSoundAsync(target.Id);
+        var after = await audio.GetDevicesAsync();
+        Check(after.Single(d => d.IsDefault).Id == target.Id, "Native test playback completes without changing Windows default output");
+        Check(after.Single(d => d.Id == target.Id).Volume == target.Volume && after.Single(d => d.Id == target.Id).Muted == target.Muted, "Native playback preserves output volume and mute state");
+    }
+    private static async Task TestSoundAsync(Dispatcher dispatcher)
+    {
+        using var audio = new FakeAudio { Devices = [Device("A", true), Device("B")] };
+        using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(false));
+        await vm.TestSelectedSoundAsync();
+        Check(audio.TestSounds.Count == 0, "Empty output list cannot play a test sound");
+        await vm.RefreshAsync(); vm.MoveSelection(1);
+        var pending = vm.TestSelectedSoundAsync();
+        await vm.TestSelectedSoundAsync(); vm.MoveSelection(-1);
+        await pending;
+        Check(audio.TestSounds.SequenceEqual(new[] { "B" }) && audio.Commits == 0 && vm.SelectedDevice?.Id == "A", "Test targets captured preview endpoint without changing default or overlapping playback");
+        vm.Volume = 0;
+        await vm.TestSelectedSoundAsync();
+        Check(vm.HasMessage && audio.TestSounds.Count == 1, "Muted or zero-volume outputs explain why a test would be inaudible");
+        vm.Volume = 50; audio.FailTestSound = true;
+        await vm.TestSelectedSoundAsync();
+        Check(vm.HasMessage && vm.CanTestSound, "Playback failure is visible and allows retry");
+        var tone = new TestToneProvider();
+        var buffer = new byte[48000 * 4];
+        var read = tone.Read(buffer, 0, buffer.Length);
+        Check(read == 33600 * 4 && tone.Read(buffer, 0, buffer.Length) == 0 && buffer.Any(b => b != 0), "Test chime produces finite stereo PCM audio");
+    }
+    private static void AudioShutdownTimeout()
+    {
+        using var release = new ManualResetEventSlim();
+        using var entered = new ManualResetEventSlim();
+        using var audio = new AudioDeviceManager();
+        var ready = (TaskCompletionSource<Dispatcher>)typeof(AudioDeviceManager)
+            .GetField("_ready", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(audio)!;
+        var worker = ready.Task.GetAwaiter().GetResult();
+        var blocked = worker.InvokeAsync(() => { entered.Set(); release.Wait(); });
+        Check(entered.Wait(TimeSpan.FromSeconds(3)), "Shutdown fixture blocks the audio apartment");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            audio.Dispose();
+            Check(clock.Elapsed < TimeSpan.FromSeconds(4), "A stalled audio driver cannot block application exit indefinitely");
+        }
+        finally { release.Set(); }
+        blocked.Task.GetAwaiter().GetResult();
+    }
+    private sealed class MemoryStartup : IStartupService
+    {
+        public bool Enabled { get; set; }
+    }
+    private static async Task HiddenDevicesAsync(Dispatcher dispatcher)
+    {
+        var preferences = new MemoryPreferences(false);
+        var startup = new MemoryStartup();
+        using var audio = new FakeAudio { Devices = [Device("A", true), Device("B"), Device("C")] };
+        using (var vm = new FlyoutViewModel(audio, dispatcher, preferences, startup))
+        {
+            await vm.RefreshAsync();
+            await vm.HideSelectedDeviceAsync();
+            Check(vm.Devices.All(d => d.Id != "A") && vm.HiddenDevices.Count == 1 && audio.Commits == 0, "Hiding active output filters UI without switching Windows audio");
+            await vm.OpenSettingsAsync();
+            vm.StartWithWindows = true;
+            Check(vm.IsSettingsOpen && !vm.IsMixerOpen && startup.Enabled, "Internal settings controls startup through service");
+            vm.StartWithWindows = false;
+            Check(!startup.Enabled, "Startup can be disabled");
+            vm.CloseSettings();
+            await vm.HideSelectedDeviceAsync(); await vm.HideSelectedDeviceAsync();
+            Check(!vm.HasDevices && vm.HiddenDevices.Count == 3, "All outputs can be hidden while settings remain accessible");
+            await vm.OpenSettingsAsync();
+            await vm.RestoreDeviceAsync("A");
+            Check(vm.HasDevices && vm.SelectedDevice?.Id == "A" && audio.Commits == 0, "Settings restores an output from an empty carousel without switching audio");
+        }
+        using var restored = new FlyoutViewModel(audio, dispatcher, preferences, startup);
+        await restored.RefreshAsync();
+        Check(restored.Devices.Count == 1 && restored.HiddenDevices.Count == 2, "Hidden outputs survive view model restart");
+        using (var autoAudio = new FakeAudio { Devices = [Device("A", true), Device("B"), Device("C")] })
+        using (var auto = new FlyoutViewModel(autoAudio, dispatcher, new MemoryPreferences(true), startup))
+        {
+            await auto.RefreshAsync();
+            await auto.HideSelectedDeviceAsync();
+            Check(auto.SelectedDevice?.Id == "B" && autoAudio.Devices.Single(d => d.IsDefault).Id == "B", "Hiding in auto mode activates the next visible output");
+            Check(auto.Devices.Select(d => d.Order).SequenceEqual(new[] { 1, 2 }), "Visible device numbers update after hiding");
+            auto.SetSelectedPosition(2);
+            Check(auto.SelectedDevice?.Order == 2, "Device order badge follows custom reordering");
+            await auto.HideSelectedDeviceAsync();
+            Check(auto.SelectedDevice?.Id == "C" && autoAudio.Devices.Single(d => d.IsDefault).Id == "C", "Hiding the last output wraps to the first visible device");
+            await auto.HideSelectedDeviceAsync();
+            Check(!auto.HasDevices && autoAudio.Commits == 2, "Hiding all outputs does not attempt to activate a missing device");
+        }
+        var directory = Path.Combine(Path.GetTempPath(), "BetterAudio.Hidden-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "settings.json");
+        try
+        {
+            var settings = new UserPreferences(path);
+            settings.HiddenDevices = new Dictionary<string, string> { ["B"] = "Auriculares" };
+            settings.DeviceOrder = ["C", "B", "A"];
+            settings.AutoSwitchOnNavigation = false;
+            Check(new UserPreferences(path).HiddenDevices["B"] == "Auriculares", "Hidden device names persist alongside order and navigation preferences");
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+    private static async Task DeviceOrderAsync(Dispatcher dispatcher)
+    {
+        var preferences = new MemoryPreferences(true);
+        using var audio = new FakeAudio { Devices = [Device("A", true), Device("B"), Device("C"), Device("D")] };
+        using (var vm = new FlyoutViewModel(audio, dispatcher, preferences))
+        {
+            await vm.RefreshAsync();
+            await vm.CommitAsync(vm.Devices.Single(d => d.Id == "D"));
+            var commits = audio.Commits;
+            vm.SetSelectedPosition(2);
+            Check(string.Join("", vm.Devices.Select(d => d.Id)) == "ADBC", "Fourth output can be moved next to the first");
+            Check(vm.SelectedDevice?.Id == "D" && vm.SelectedIndex == 1 && audio.Commits == commits, "Reordering preserves selection without switching audio");
+            await vm.RefreshAsync();
+            Check(string.Join("", vm.Devices.Select(d => d.Id)) == "ADBC", "Refresh respects custom order");
+            vm.MoveSelection(-1);
+            await Task.Delay(150);
+            Check(audio.Devices.Single(d => d.IsDefault).Id == "A", "Automatic navigation uses custom order");
+            vm.SetSelectedPosition(0); vm.SetSelectedPosition(5);
+            Check(string.Join("", vm.Devices.Select(d => d.Id)) == "ADBC", "Invalid positions leave order unchanged");
+        }
+        using var restored = new FlyoutViewModel(audio, dispatcher, preferences);
+        audio.Devices = [Device("C"), Device("D"), Device("A", true)];
+        await restored.RefreshAsync();
+        Check(string.Join("", restored.Devices.Select(d => d.Id)) == "ADC", "Saved order survives restart and disconnected outputs");
+        audio.Devices.Add(Device("B")); audio.Devices.Add(Device("E"));
+        await restored.RefreshAsync();
+        Check(string.Join("", restored.Devices.Select(d => d.Id)) == "ADBCE", "Reconnected outputs regain position and new outputs append");
+    }
     private static async Task RegressionAsync(Dispatcher dispatcher)
     {
         using var audio = new FakeAudio();
@@ -191,9 +335,10 @@ internal static class Program
         var window = new FlyoutWindow(vm);
         try
         {
-            foreach (var mixer in new[] { false, true })
+            foreach (var view in new[] { "outputs", "mixer", "settings" })
             {
-                if (mixer) await vm.OpenMixerAsync();
+                if (view == "mixer") await vm.OpenMixerAsync();
+                if (view == "settings") await vm.OpenSettingsAsync();
                 var root = (System.Windows.FrameworkElement)window.Content;
                 root.Measure(new System.Windows.Size(408, vm.HudHeight));
                 root.Arrange(new System.Windows.Rect(0, 0, 408, vm.HudHeight)); root.UpdateLayout();
@@ -201,7 +346,7 @@ internal static class Program
                 bitmap.Render(root);
                 var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
                 encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                var path = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", mixer ? "hud-mixer-preview.png" : "hud-preview.png");
+                var path = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", view == "outputs" ? "hud-preview.png" : $"hud-{view}-preview.png");
                 using var output = File.Create(path); encoder.Save(output); Console.WriteLine(path);
             }
         }
@@ -352,10 +497,27 @@ internal static class Program
             Check(settings.AutoSwitchOnNavigation, "Automatic navigation is enabled for a new user");
             settings.AutoSwitchOnNavigation = false;
             Check(!new UserPreferences(path).AutoSwitchOnNavigation, "Checkbox preference survives a restart");
+            settings.DeviceOrder = ["D", "A", "B"];
+            settings.AutoSwitchOnNavigation = true;
+            var restored = new UserPreferences(path);
+            Check(restored.DeviceOrder.SequenceEqual(new[] { "D", "A", "B" }) && restored.AutoSwitchOnNavigation, "Device order and navigation preference persist independently");
+            File.WriteAllText(path, "{\"AutoSwitchOnNavigation\":false}");
+            Check(new UserPreferences(path).DeviceOrder.Count == 0, "Existing settings without device order remain compatible");
             File.WriteAllText(path, "invalid json");
-            Check(new UserPreferences(path).AutoSwitchOnNavigation, "Corrupt preferences recover safely with defaults");
+            Check(!new UserPreferences(path).AutoSwitchOnNavigation && new UserPreferences(path).DeviceOrder.Count == 3, "Corrupt primary preferences recover the previous saved configuration from backup");
+            var recovered = new UserPreferences(path);
+            recovered.HiddenDevices = new Dictionary<string, string> { ["B"] = "Auriculares" };
+            Check(new UserPreferences(path).DeviceOrder.Count == 3 && new UserPreferences(path).HiddenDevices.ContainsKey("B"), "Saving after recovery retains recovered order and hidden devices");
+            var first = new UserPreferences(path);
+            var second = new UserPreferences(path);
+            first.DeviceOrder = ["B", "A"];
+            second.AutoSwitchOnNavigation = true;
+            Check(new UserPreferences(path).DeviceOrder.SequenceEqual(new[] { "B", "A" }) && new UserPreferences(path).HiddenDevices.ContainsKey("B"), "Updating from an older preferences instance preserves latest saved values");
+            File.WriteAllText(path, "{\"FutureSetting\":42,\"HiddenDevices\":{\"B\":\"Auriculares\"}}");
+            new UserPreferences(path).AutoSwitchOnNavigation = false;
+            Check(File.ReadAllText(path).Contains("FutureSetting") && new UserPreferences(path).HiddenDevices.ContainsKey("B"), "Preference edits preserve settings added by other versions");
         }
-        finally { if (File.Exists(path)) File.Delete(path); if (Directory.Exists(directory)) Directory.Delete(directory); }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
         var headset = new AudioDeviceModel(new("test", "Audífono de los auriculares con micrófono (CORSAIR HS80 MAX WIRELESS Gaming Headset)", "Auriculares", "", 28, false, true));
         Check(headset.DisplayName == "Corsair HS80 MAX", "HUD shows the commercial name and retains the original endpoint name separately");
     }
@@ -393,6 +555,14 @@ internal static class Program
         public bool FailNextCommit { get; set; }
         public int WriteDelay { get; set; }
         public int SwitchDelay { get; set; }
+        public List<string> TestSounds { get; } = [];
+        public bool FailTestSound { get; set; }
+        public async Task PlayTestSoundAsync(string id)
+        {
+            TestSounds.Add(id);
+            await Task.Delay(30);
+            if (FailTestSound) throw new InvalidOperationException("Disconnected");
+        }
         public List<string> DefaultAttempts { get; } = [];
         public int MaxConcurrentSwitches { get; private set; }
         private int _concurrentSwitches;
@@ -445,6 +615,8 @@ internal static class Program
     private sealed class MemoryPreferences(bool initial) : IUserPreferences
     {
         public bool AutoSwitchOnNavigation { get; set; } = initial;
+        public IReadOnlyList<string> DeviceOrder { get; set; } = [];
+        public IReadOnlyDictionary<string, string> HiddenDevices { get; set; } = new Dictionary<string, string>();
     }
 }
 

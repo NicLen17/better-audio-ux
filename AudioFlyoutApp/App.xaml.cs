@@ -44,7 +44,7 @@ public partial class App : System.Windows.Application
             _tray = new SystemTrayService(_window);
             await _viewModel.RefreshAsync();
             // Show once on startup so the new icon and controls can be discovered.
-            _tray.Show(true);
+            if (!Array.Exists(e.Args, arg => arg == "--startup")) _tray.Show(true);
             Log.Write("Better Audio started");
         }
         catch (Exception ex)
@@ -68,6 +68,7 @@ public partial class App : System.Windows.Application
         try { _audio?.Dispose(); } catch (Exception ex) { Log.Write("Audio shutdown", ex); }
         if (_ownsMutex) _mutex?.ReleaseMutex();
         _mutex?.Dispose();
+        Log.Write("Better Audio shutdown complete");
         base.OnExit(e);
     }
 }

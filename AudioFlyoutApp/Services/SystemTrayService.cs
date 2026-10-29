@@ -24,13 +24,13 @@ public sealed class SystemTrayService : IDisposable
         _window = window;
         _hover = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         _leave = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        using var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/audio.ico")).Stream;
+        using var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/BetterAudio;component/Assets/audio.ico")).Stream;
         _image = new Icon(resource);
         _menu = new Forms.ContextMenuStrip();
         _menu.Items.Add("Abrir Better Audio", null, (_, _) => Show(true));
         _menu.Items.Add("Mezclador de volumen", null, (_, _) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:apps-volume") { UseShellExecute = true }));
         _menu.Items.Add(new Forms.ToolStripSeparator());
-        _menu.Items.Add("Salir", null, (_, _) => System.Windows.Application.Current.Shutdown());
+        _menu.Items.Add("Salir", null, (_, _) => ExitApplication());
         _menu.Opening += (_, _) => { _contextOpen = true; _hover.Stop(); _window.Dismiss(); };
         _menu.Closed += (_, _) => { _contextOpen = false; _dismissedAt = DateTime.UtcNow; };
         _icon = new NativeTrayIcon(_image);
@@ -55,6 +55,13 @@ public sealed class SystemTrayService : IDisposable
         };
         _leave.Tick += (_, _) => CheckPointer();
         _window.Dismissed += WindowDismissed;
+    }
+
+    public static void ExitApplication()
+    {
+        // Let the WinForms menu finish its click/close callbacks before disposing it.
+        var app = System.Windows.Application.Current;
+        app.Dispatcher.BeginInvoke(new Action(() => app.Shutdown()), DispatcherPriority.Normal);
     }
 
     private void WindowDismissed(object? sender, EventArgs e) { _dismissedAt = DateTime.UtcNow; _leave.Stop(); }

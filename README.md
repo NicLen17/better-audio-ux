@@ -18,6 +18,10 @@ Screenshots use demonstration data.
 
 - Browse outputs in an animated arc, with **in use** and **available** status labels.
 - Switch outputs automatically while browsing, or require a click or Enter to confirm.
+- Hide unused outputs with **Ocultar** and restore them from internal **Configuración** (⚙). This only filters the app; it does not disable Windows endpoints.
+- Enable or disable startup with Windows in internal settings. Startup launches silently in the tray; keep the portable app in its registered folder.
+- Save a custom output order using **Ordenar** → **Posición**, placing frequently used devices next to each other. Reconnected devices retain their place; new devices appear at the end.
+- Test the selected output with **Probar**, which plays a short chime without changing the Windows default output or its volume.
 - Adjust each output's volume and mute state.
 - Control application audio sessions inside the same overlay.
 - Enable Windows Sonic and open Windows settings for other spatial providers.
@@ -99,7 +103,7 @@ GitHub Actions builds, tests, and publishes a portable artifact on Windows. See 
 
 ## Privacy and troubleshooting
 
-No accounts, application telemetry, or remote services. Preferences and rotating logs are stored locally under `%LOCALAPPDATA%\BetterAudio`. The application does not add itself to Windows startup.
+No accounts, application telemetry, or remote services. Preferences and rotating logs are stored locally under `%LOCALAPPDATA%\BetterAudio`. Windows startup is opt-in through internal settings. Output order, hidden outputs and navigation preferences save immediately to `settings.json`, independently of the executable folder. Saves are atomic and keep a previous valid configuration in `settings.json.bak` for recovery. Rebuilding or replacing the portable app preserves these files.
 
 To report a problem, [open an issue](https://github.com/NicLen17/better-audio-ux/issues) with your Windows version, reproduction steps, and expected behavior. Review logs before sharing them.
 
