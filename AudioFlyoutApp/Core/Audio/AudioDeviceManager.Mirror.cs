@@ -22,16 +22,17 @@ public sealed partial class AudioDeviceManager : IAudioMirrorService
         StopMirror();
         try
         {
-            // Ask the Windows mixer for stereo so surround headsets can feed stereo speakers.
+            // Capture native channels: the automatic stereo loopback conversion loses level.
             var capture = new WasapiRecorderBuilder().WithDevice(source).WithLoopbackCapture()
-                .WithFormat(WaveFormat.CreateIeeeFloatWaveFormat(48000, 2)).WithBufferLength(20).Build();
+                .WithBufferLength(20).Build();
             _mirrorCapture = capture;
             var buffer = new BufferedWaveProvider(capture.WaveFormat, TimeSpan.FromMilliseconds(400))
             {
                 DiscardOnBufferOverflow = true,
                 ReadFully = true
             };
-            _mirrorVolume = new VolumeSampleProvider(buffer.ToSampleProvider()) { Volume = Math.Clamp(volume, 0, 100) / 100f };
+            _mirrorVolume = new VolumeSampleProvider(new MirrorStereoSampleProvider(buffer.ToSampleProvider(),
+                capture.WaveFormat is WaveFormatExtensible extensible ? (uint)extensible.ChannelMask : 0)) { Volume = Math.Clamp(volume, 0, 100) / 100f };
             var output = new WasapiPlayerBuilder().WithDevice(target).WithSharedMode().WithEventSync().WithLatency(50).Build();
             _mirrorOutput = output;
             capture.DataAvailable += (data, flags, position, timestamp) =>

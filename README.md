@@ -2,7 +2,7 @@
 
 A compact Windows 11 audio HUD that puts output devices and application volume one click away. It lives in the system tray and reduces the steps needed to switch between headphones and speakers, adjust volume, or mute an application.
 
-Built with **C#, WPF, and .NET 10 LTS**. Current application release: **1.3.1**. The application interface is currently in Spanish; this documentation is in English.
+Built with **C#, WPF, and .NET 10 LTS**. Current application release: **1.3.2**. The application interface is currently in Spanish; this documentation is in English.
 
 **Resumen en español:** Better Audio UX es una herramienta portable para Windows 11 que permite cambiar la salida de audio, ajustar el volumen y silenciar aplicaciones desde un panel compacto en la bandeja del sistema. Incluye un carrusel de dispositivos, mezclador integrado, control de Windows Sonic y navegación con mouse y teclado, para reducir los clics necesarios en la configuración de Windows.
 
@@ -64,7 +64,7 @@ The mixer shows sessions for the selected output. One application can have multi
 
 Choose **Duplicar** beside the output name, select **Origen** (for example, headphones) and **Repetir en** (speakers), then click **Activar duplicación**. The game or video must already play on the source output. Adjust **Volumen de la copia** independently and use **Detener duplicación** to stop sharing.
 
-This shares all audio on the chosen source, including notifications and voice chat. The copy is stereo and may have some delay, particularly with Bluetooth. Both devices must remain connected and audible. The source and destination remain fixed when the Windows default changes. Closing the panel leaves the copy running; **Duplicar ●** on the main view indicates it is active. Disconnecting either endpoint or exiting Better Audio stops it. Reconnection and app restart require manual activation. Source and destination cannot be the same endpoint.
+This shares all audio on the chosen source, including notifications and voice chat. The copy is stereo and may have some delay, particularly with Bluetooth. Both devices must remain connected and the destination must be audible. Surround sources are folded to stereo with front-channel levels preserved; only peaks that would exceed full scale are limited. The source and destination remain fixed when the Windows default changes. Closing the panel leaves the copy running; **Duplicar ●** on the main view indicates it is active. Disconnecting either endpoint or exiting Better Audio stops it. Reconnection and app restart require manual activation. Source and destination cannot be the same endpoint.
 
 ## Spatial audio
 

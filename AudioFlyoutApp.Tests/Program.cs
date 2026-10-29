@@ -31,10 +31,11 @@ internal static class Program
                 if (args.Contains("--render")) await RenderHudAsync(dispatcher);
                 else if (args.Contains("--ui") || args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo")) await PreviewAsync(dispatcher, args.Contains("--ui-demo") || args.Contains("--ui-mixer-demo"), args.Contains("--ui-mixer-demo"));
                 else if (args.Contains("--spatial-roundtrip")) await SpatialRoundtripAsync();
+                else if (args.Contains("--mirror-level-live")) await MirrorLevelsLiveAsync();
                 else if (args.Contains("--mirror-live")) await MirrorLiveAsync();
                 else if (args.Contains("--test-sound-live")) await TestSoundLiveAsync();
                 else if (args.Contains("--live")) await LiveAsync();
-                else { await MirrorAsync(dispatcher); AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
+                else { MirrorDownmix(); await MirrorAsync(dispatcher); AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
                 Console.WriteLine($"PASS: {_assertions} assertions");
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); exitCode = 1; }
@@ -50,6 +51,31 @@ internal static class Program
         Console.WriteLine("PASS: " + reason);
     }
     private static DeviceSnapshot Device(string id, bool active = false, int volume = 50) => new(id, id, "Test", "", volume, false, active);
+    private sealed class SampleFixture(int channels, params float[] samples) : NAudio.Wave.ISampleProvider
+    {
+        private int _offset;
+        public NAudio.Wave.WaveFormat WaveFormat { get; } = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, channels);
+        public int Read(Span<float> buffer)
+        {
+            var count = Math.Min(buffer.Length, samples.Length - _offset);
+            samples.AsSpan(_offset, count).CopyTo(buffer); _offset += count; return count;
+        }
+    }
+    private static void MirrorDownmix()
+    {
+        var stereo = new MirrorStereoSampleProvider(new SampleFixture(2, .2f, -.3f), 3);
+        var output = new float[2]; stereo.Read(output);
+        Check(output.SequenceEqual(new[] { .2f, -.3f }), "Stereo mirroring preserves the original channel amplitudes");
+        var surround = new MirrorStereoSampleProvider(new SampleFixture(8, .2f, -.3f, 0, 0, 0, 0, 0, 0), 0x63f);
+        surround.Read(output);
+        Check(output.SequenceEqual(new[] { .2f, -.3f }), "7.1 front channels are copied at unity rather than globally attenuated");
+        var centerAndSides = new MirrorStereoSampleProvider(new SampleFixture(8, 0, 0, .2f, 0, 0, 0, .1f, .3f), 0x63f);
+        centerAndSides.Read(output);
+        Check(Math.Abs(output[0] - .3f * .7071f) < .0001 && Math.Abs(output[1] - .5f * .7071f) < .0001, "Center dialogue and side channels remain present in the stereo fold-down");
+        var loud = new MirrorStereoSampleProvider(new SampleFixture(6, 1, .5f, 1, 1, 1, 1), 0x3f);
+        loud.Read(output);
+        Check(output.Max() <= 1 && output.Min() >= -1 && output[0] > output[1], "Surround summation limits actual peaks while retaining stereo balance");
+    }
     private static async Task MirrorAsync(Dispatcher dispatcher)
     {
         using var audio = new FakeAudio { Devices = [Device("A", true), Device("B")] };
@@ -91,6 +117,64 @@ internal static class Program
         using var native = new AudioDeviceManager();
         try { await native.StartMirrorAsync("same", "same", 70); Check(false, "Same endpoint rejected"); }
         catch (InvalidOperationException) { Check(!(await native.GetMirrorStateAsync()).IsActive, "Native backend rejects self-copy before opening audio devices"); }
+    }
+    private static double ToneAmplitude(float[] samples)
+    {
+        double peak = 0;
+        const int frames = 4800;
+        for (var start = 0; start + frames <= samples.Length; start += 1200)
+        {
+            double real = 0, imaginary = 0;
+            for (var i = 0; i < frames; i++)
+            {
+                var angle = 2 * Math.PI * 523.25 * i / 48000;
+                real += samples[start + i] * Math.Cos(angle);
+                imaginary += samples[start + i] * Math.Sin(angle);
+            }
+            peak = Math.Max(peak, 2 * Math.Sqrt(real * real + imaginary * imaginary) / frames);
+        }
+        return peak;
+    }
+    private static async Task MirrorLevelsLiveAsync()
+    {
+        using var audio = new AudioDeviceManager();
+        var devices = await audio.GetDevicesAsync();
+        var source = devices.First(d => d.IsDefault);
+        var target = devices.Where(d => d.Id != source.Id && !d.Muted && d.Volume > 0)
+            .OrderBy(d => d.Name.Contains("Steam") ? 1 : 0).ThenBy(d => d.Name.StartsWith("Altavoces") ? 0 : 1).First();
+        using var enumerator = new NAudio.CoreAudioApi.MMDeviceEnumerator();
+        using var sourceEndpoint = enumerator.GetDevice(source.Id);
+        using var endpoint = enumerator.GetDevice(target.Id);
+        var original = sourceEndpoint.AudioEndpointVolume.MasterVolumeLevelScalar;
+        using var capture = new NAudio.Wave.WasapiRecorderBuilder().WithDevice(endpoint).WithLoopbackCapture().WithFormat(NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 2)).Build();
+        var samples = new List<float>(); var gate = new object();
+        capture.DataAvailable += (data, flags, position, timestamp) =>
+        {
+            lock (gate) for (var i = 0; i + 8 <= data.Length; i += 8) samples.Add(BitConverter.ToSingle(data.Slice(i, 4)));
+        };
+        capture.StartRecording();
+        async Task<double> Measure(string id)
+        {
+            await Task.Delay(250); lock (gate) samples.Clear();
+            await audio.PlayTestSoundAsync(id); await Task.Delay(150);
+            float[] captured; lock (gate) captured = samples.ToArray();
+            return ToneAmplitude(captured);
+        }
+        try
+        {
+            var direct = await Measure(target.Id);
+            await audio.StartMirrorAsync(source.Id, target.Id, 100);
+            await audio.SetVolumeAsync(source.Id, 35); var low = await Measure(source.Id);
+            await audio.SetVolumeAsync(source.Id, 65); var high = await Measure(source.Id);
+            Console.WriteLine($"Tone amplitude: direct={direct:F5}, copy/source35={low:F5}, copy/source65={high:F5}");
+            Check(direct > .001 && Math.Abs(low / direct - 1) < .2 && Math.Abs(high / direct - 1) < .2, "Copy at 100% preserves front-channel level relative to direct stereo playback");
+            Check(Math.Abs(low / high - 1) < .15, "Headphone master volume does not attenuate the copy on this endpoint");
+            await audio.SetMirrorVolumeAsync(50); var half = await Measure(source.Id);
+            Check(Math.Abs(half / high - .5) < .1, "Copy at 50% applies half the original signal amplitude");
+            await audio.SetMirrorVolumeAsync(0); var silent = await Measure(source.Id);
+            Check(silent < direct * .02, "Copy at 0% silences the copied test tone");
+        }
+        finally { await audio.StopMirrorAsync(); sourceEndpoint.AudioEndpointVolume.MasterVolumeLevelScalar = original; }
     }
     private static async Task MirrorLiveAsync()
     {
@@ -391,12 +475,29 @@ internal static class Program
             Check(window.KeepOpen, "Header pin explicitly keeps the HUD open independently of keyboard focus");
             pin.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             Check(!window.KeepOpen, "Header pin can return to automatic dismissal");
+            window.Show();
             await vm.OpenMixerAsync();
+            await Task.Delay(350);
             var list = (System.Windows.Controls.ScrollViewer)window.FindName("MixerList");
+            audio.Sessions = Enumerable.Range(0, 12).Select(i => new SessionSnapshot(vm.SelectedDevice!.Id, $"scroll-{i}", $"App {i}", 50, false, true)).ToList();
+            await vm.RefreshMixerAsync();
+            window.UpdateLayout();
+            Console.WriteLine($"Scroll viewport={list.ViewportHeight} extent={list.ExtentHeight} max={list.ScrollableHeight}");
             var volumeBeforeWheel = vm.Volume;
             var wheel = new System.Windows.Input.MouseWheelEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0, -120) { RoutedEvent = System.Windows.Input.Mouse.PreviewMouseWheelEvent };
             list.RaiseEvent(wheel);
             Check(wheel.Handled && vm.Volume == volumeBeforeWheel && audio.SessionWrites.Count == 0, "Mixer wheel scrolls the list without changing master or application volumes");
+            window.UpdateLayout();
+            Check(list.ScrollableHeight > 0 && list.VerticalOffset > 0, "Mixer wheel actually moves an overflowing session list");
+            list.ScrollToTop(); window.UpdateLayout();
+            var screen = list.PointToScreen(new System.Windows.Point(40, 40));
+            var packedPoint = new IntPtr((ushort)(short)screen.X | ((long)(ushort)(short)screen.Y << 16));
+            object[] wheelArgs = [IntPtr.Zero, 0x020A, new IntPtr(unchecked(-120 << 16)), packedPoint, false];
+            typeof(FlyoutWindow).GetMethod("WindowProc", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(window, wheelArgs);
+            window.UpdateLayout();
+            Check((bool)wheelArgs[4] && list.VerticalOffset > 0 && vm.Volume == volumeBeforeWheel, "Native wheel over the mixer scrolls without relying on child controls forwarding input");
+            list.ScrollToBottom(); window.UpdateLayout();
+            Check(Math.Abs(list.VerticalOffset - list.ScrollableHeight) < 1, "The final mixer session can be reached");
             await vm.CloseMixerAsync();
             var slider = (AnimatedVolumeSlider)window.FindName("VolumeSlider");
             Check(slider.Value == vm.Volume && slider.DisplayValue == vm.Volume,

@@ -105,6 +105,20 @@ public partial class FlyoutWindow : Window
             IsPinned = true;
             NativeWindow.SetInteractive(this, true);
         }
+        // Handle wheel input at the HWND too: sliders and no-activate previews can
+        // otherwise consume it before the ScrollViewer sees a routed wheel event.
+        if (ViewModel.IsMixerOpen && message is 0x020A or 0x020E)
+        {
+            var screenPoint = new Point((short)(lParam.ToInt64() & 0xFFFF), (short)((lParam.ToInt64() >> 16) & 0xFFFF));
+            var point = MixerList.PointFromScreen(screenPoint);
+            if (point.X >= 0 && point.Y >= 0 && point.X <= MixerList.ActualWidth && point.Y <= MixerList.ActualHeight)
+            {
+                var delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
+                MixerList.ScrollToVerticalOffset(MixerList.VerticalOffset + (message == 0x020E ? delta : -delta) * .4);
+                handled = true;
+                return IntPtr.Zero;
+            }
+        }
         if (message == 0x020E) // WM_MOUSEHWHEEL, including horizontal mouse/trackpad input.
         {
             if (ViewModel.IsMixerOpen || ViewModel.IsSettingsOpen || ViewModel.IsMirrorOpen) return IntPtr.Zero;
