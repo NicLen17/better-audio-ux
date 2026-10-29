@@ -330,7 +330,14 @@ internal static class Program
             new("b", "Audífono (CORSAIR HS80 MAX WIRELESS Gaming Headset)", "Auriculares", "\uE7F6", 28, false, true),
             new("c", "Monitor (DisplayPort)", "Pantalla", "\uE7F4", 60, false, false)
         ], Sessions = [new("b", "browser", "Google Chrome", 74, false, true), new("b", "music", "Música", 42, false, true), new("b", "system", "Sonidos del sistema", 25, true, false)] };
-        using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(true));
+        using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(true)
+        {
+            HiddenDevices = new Dictionary<string, string>
+            {
+                ["demo-hdmi"] = "Monitor (HDMI)",
+                ["demo-streaming"] = "Altavoces (Steam Streaming Speakers)"
+            }
+        }, new MemoryStartup());
         await vm.RefreshAsync();
         var window = new FlyoutWindow(vm);
         try

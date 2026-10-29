@@ -8,9 +8,9 @@ Built with **C#, WPF, and .NET 10 LTS**. Current application release: **1.2.9**.
 
 ## Screenshots
 
-| Output selector | Integrated mixer |
-| --- | --- |
-| ![Arc-shaped output selector](docs/images/hud.png) | ![Master and per-application volume](docs/images/mixer.png) |
+| Output selector | Integrated mixer | Internal settings |
+| --- | --- | --- |
+| ![Output selector with device order and test button](docs/images/hud.png) | ![Master and per-application volume](docs/images/mixer.png) | ![Startup preference and hidden output restoration](docs/images/settings.png) |
 
 Screenshots use demonstration data.
 
