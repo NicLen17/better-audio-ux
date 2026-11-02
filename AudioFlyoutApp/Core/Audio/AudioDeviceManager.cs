@@ -37,8 +37,9 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
         return await dispatcher.InvokeAsync(action).Task.ConfigureAwait(false);
     }
 
-    public Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync() => RunAsync<IReadOnlyList<DeviceSnapshot>>(() =>
+    public Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync(AudioDeviceFlow flow = AudioDeviceFlow.Output) => RunAsync<IReadOnlyList<DeviceSnapshot>>(() =>
     {
+        var dataFlow = flow == AudioDeviceFlow.Input ? DataFlow.Capture : DataFlow.Render;
         if (_enumerator is null)
         {
             _enumerator = new MMDeviceEnumerator();
@@ -47,15 +48,15 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
             _notifications.DeviceRemoved += (_, _) => Notify();
             _notifications.DeviceStateChanged += (_, _) => Notify();
             _notifications.PropertyValueChanged += (_, _) => Notify();
-            _notifications.DefaultDeviceChanged += (_, args) => { if (args.Flow == DataFlow.Render) Notify(); };
+            _notifications.DefaultDeviceChanged += (_, _) => Notify();
         }
         string? defaultId = null;
-        if (_enumerator.TryGetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia, out var current))
+        if (_enumerator.TryGetDefaultAudioEndpoint(dataFlow, Role.Multimedia, out var current))
         { using (current) defaultId = current.ID; }
 
         var found = new HashSet<string>();
         var result = new List<DeviceSnapshot>();
-        using var endpoints = _enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+        using var endpoints = _enumerator.EnumerateAudioEndPoints(dataFlow, DeviceState.Active);
         foreach (var candidate in endpoints)
         {
             MMDevice? owned = candidate;
@@ -85,11 +86,13 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
             }
             finally { owned?.Dispose(); }
         }
-        foreach (var id in _devices.Keys.Where(id => !found.Contains(id)).ToArray()) Release(id);
+        foreach (var id in _devices.Keys.Where(id => _devices[id].DataFlow == dataFlow && !found.Contains(id)).ToArray()) Release(id);
         return result.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
     });
 
-    private static (string Kind, string Glyph) Describe(MMDevice device) => DescribeName(device.FriendlyName);
+    private static (string Kind, string Glyph) Describe(MMDevice device) => device.DataFlow == DataFlow.Capture
+        ? (device.FriendlyName.Contains("line", StringComparison.OrdinalIgnoreCase) ? "Entrada de línea" : "Micrófono · entrada de audio", "\uE720")
+        : DescribeName(device.FriendlyName);
 
     private static (string, string) DescribeName(string name)
     {
@@ -101,7 +104,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
     }
 
     private MMDevice Get(string id) => _devices.TryGetValue(id, out var device) && device.State == DeviceState.Active
-        ? device : throw new InvalidOperationException("El dispositivo se desconectó. Elegí otra salida.");
+        ? device : throw new InvalidOperationException("El dispositivo se desconectó. Elegí otro dispositivo.");
     public Task SetDefaultAsync(string id) => RunAsync(() => { _ = Get(id); ComPolicyConfig.SetDefault(id); return true; });
     public Task SetVolumeAsync(string id, int volume) => RunAsync(() => { Get(id).AudioEndpointVolume.MasterVolumeLevelScalar = Math.Clamp(volume, 0, 100) / 100f; return true; });
     public Task SetMuteAsync(string id, bool muted) => RunAsync(() => { Get(id).AudioEndpointVolume.Mute = muted; return true; });
@@ -110,6 +113,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
 
     private void Release(string id)
     {
+        if (_listenState.InputId == id || _listenState.OutputId == id) StopListening("La escucha se detuvo porque se desconectó un dispositivo.");
         if (_mirrorState.SourceId == id || _mirrorState.TargetId == id) StopMirror("La duplicación se detuvo porque se desconectó una salida.");
         if (_testDeviceId == id) StopTestSound();
         if (_watchedEndpoint == id) StopWatchingSessions();
@@ -130,6 +134,7 @@ public sealed partial class AudioDeviceManager : IAudioDeviceManager, IAudioMixe
         {
             try
             {
+                StopListening();
                 StopMirror();
                 StopTestSound();
                 StopWatchingSessions();

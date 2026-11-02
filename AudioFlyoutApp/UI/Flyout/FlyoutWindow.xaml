@@ -11,6 +11,7 @@
         <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="ControlTheme.xaml"/></ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="VisibleIf"/>
         <DataTemplate x:Key="AudioDeviceChoice"><TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" TextTrimming="CharacterEllipsis"/></DataTemplate>
+
         <Style x:Key="FooterGroupButton" TargetType="Button">
             <Setter Property="Foreground" Value="#142C28"/><Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="Transparent" Padding="2,0"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter>
@@ -59,6 +60,7 @@
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
+        <Style x:Key="OutputAction" TargetType="Button" BasedOn="{StaticResource CompactAction}"><Setter Property="Visibility" Value="{Binding IsOutputMode, Converter={StaticResource VisibleIf}}"/></Style>
         <Style x:Key="Pill" TargetType="Button">
             <Setter Property="Foreground" Value="#C1D3D0"/><Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Padding" Value="15,10"/><Setter Property="Background" Value="#26353B"/>
@@ -185,14 +187,15 @@
                 </ItemsControl>
                 <Button Style="{StaticResource IconButton}" Focusable="False" Content="‹" FontSize="23" HorizontalAlignment="Left" VerticalAlignment="Bottom" Click="Previous_Click" IsEnabled="{Binding HasDevices}" ToolTip="Anterior · ←" AutomationProperties.Name="Dispositivo anterior"/>
                 <Button Style="{StaticResource IconButton}" Focusable="False" Content="›" FontSize="23" HorizontalAlignment="Right" VerticalAlignment="Bottom" Click="Next_Click" IsEnabled="{Binding HasDevices}" ToolTip="Siguiente · →" AutomationProperties.Name="Dispositivo siguiente"/>
-                <Button Style="{StaticResource CompactAction}" Content="{Binding TestSoundLabel}" Padding="9,4" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Top" Click="TestSound_Click" IsEnabled="{Binding CanTestSound}" ToolTip="Reproducir un sonido breve en la salida seleccionada" AutomationProperties.Name="Probar salida seleccionada"/>
-                <Button Style="{StaticResource CompactAction}" Content="Ocultar" Padding="9,4" FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Top" Click="HideDevice_Click" IsEnabled="{Binding HasDevices}" ToolTip="Ocultar salida; restaurar desde Configuración"/>
+                <Button x:Name="ListenButton" Style="{StaticResource CompactAction}" Content="{Binding ListenLabel}" Padding="9,4" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Top" Click="Listen_Click" IsEnabled="{Binding CanListen}" Visibility="{Binding IsInputMode, Converter={StaticResource VisibleIf}}" ToolTip="{Binding ListenHint}" AutomationProperties.Name="{Binding ListenLabel}"/>
+                <Button Style="{StaticResource OutputAction}" Content="{Binding TestSoundLabel}" Padding="9,4" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Top" Click="TestSound_Click" IsEnabled="{Binding CanTestSound}" ToolTip="Reproducir un sonido breve en la salida seleccionada" AutomationProperties.Name="Probar salida seleccionada"/>
+                <Button Style="{StaticResource CompactAction}" Content="Ocultar" Padding="9,4" FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Top" Click="HideDevice_Click" IsEnabled="{Binding HasDevices}" ToolTip="Ocultar dispositivo; restaurar desde Configuración"/>
                 <Button Style="{StaticResource CompactAction}" Content="Ordenar" Padding="9,4" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Top" Click="Order_Click" IsEnabled="{Binding HasDevices}" ToolTip="Elegir la posición del dispositivo seleccionado" AutomationProperties.Name="Ordenar dispositivo seleccionado"/>
                 <Button Content="Buscar salidas" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Retry_Click">
                     <Button.Style><Style TargetType="Button" BasedOn="{StaticResource Pill}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
                 </Button>
             </Grid>
-            <Grid Grid.Row="1" Margin="20,0"><Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><Button Grid.Column="2" Style="{StaticResource CompactAction}" Content="{Binding MirrorEntryLabel}" Padding="9,5" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center" Click="Mirror_Click" ToolTip="Repetir el audio en otra salida"/><TextBlock x:Name="SelectedOutputTitle" Grid.Column="1" Text="{Binding SelectedName}" ToolTip="{Binding SelectedDevice.Name}" TextWrapping="Wrap" TextAlignment="Center" FontSize="15" FontWeight="SemiBold" MaxHeight="39" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/></Grid>
+            <Grid Grid.Row="1" Margin="20,0"><Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition/><ColumnDefinition Width="72"/></Grid.ColumnDefinitions><Button Grid.Column="2" Style="{StaticResource OutputAction}" Content="{Binding MirrorEntryLabel}" Padding="9,5" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center" Click="Mirror_Click" ToolTip="Repetir el audio en otra salida"/><TextBlock x:Name="SelectedOutputTitle" Grid.Column="1" Text="{Binding SelectedName}" ToolTip="{Binding SelectedDevice.Name}" TextWrapping="Wrap" TextAlignment="Center" FontSize="15" FontWeight="SemiBold" MaxHeight="39" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/></Grid>
             <Grid Grid.Row="2" Margin="14,0" PreviewMouseWheel="Volume_Wheel" IsEnabled="{Binding CanInteract}">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition/><ColumnDefinition Width="42"/></Grid.ColumnDefinitions>
                 <Button Style="{StaticResource IconButton}" Content="{Binding VolumeGlyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" Click="Mute_Click" ToolTip="{Binding MuteLabel}" AutomationProperties.Name="{Binding MuteLabel}"/>
@@ -211,41 +214,54 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0"><Border.Style><Style TargetType="Border"><Setter Property="Background" Value="Transparent"/><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#25142C28"/></Trigger></Style.Triggers></Style></Border.Style>
-                    <Grid HorizontalAlignment="Center" Width="114">
+                    <Grid HorizontalAlignment="Center" Width="114" Visibility="{Binding IsOutputMode, Converter={StaticResource VisibleIf}}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
                         <Button Style="{StaticResource FooterGroupButton}" Click="Mixer_Click" AutomationProperties.Name="Abrir mezclador integrado" HorizontalAlignment="Stretch"><StackPanel Orientation="Horizontal" HorizontalAlignment="Center"><TextBlock Text="&#xE9E9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/><TextBlock Text="Mezclador" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button Grid.Column="1" Style="{StaticResource FooterIconButton}" Click="MixerSettings_Click" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Mezclador de Windows" AutomationProperties.Name="Abrir configuración del mezclador en Windows"/>
                     </Grid>
                 </Border>
                 <Border Grid.Column="1" Margin="0"><Border.Style><Style TargetType="Border"><Setter Property="Background" Value="Transparent"/><Style.Triggers><DataTrigger Binding="{Binding SpatialEnabled}" Value="True"><Setter Property="Background" Value="#2D5C4E"/></DataTrigger><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#25142C28"/></Trigger><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding SpatialEnabled}" Value="True"/><Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/></MultiDataTrigger.Conditions><Setter Property="Background" Value="#3B7060"/></MultiDataTrigger></Style.Triggers></Style></Border.Style>
-                    <Grid HorizontalAlignment="Center" Width="114">
+                    <Grid HorizontalAlignment="Center" Width="114" Visibility="{Binding IsOutputMode, Converter={StaticResource VisibleIf}}">
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
                         <CheckBox Style="{StaticResource FooterCheckBox}" Content="Sonido espacial" FontSize="10.5" HorizontalContentAlignment="Center" Margin="0" IsChecked="{Binding SpatialEnabled, Mode=OneWay}" IsEnabled="{Binding CanToggleSpatial}" Click="SpatialToggle_Click" ToolTip="{Binding SpatialHint}" ToolTipService.ShowOnDisabled="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AutomationProperties.Name="Activar o desactivar sonido espacial"/>
                         <Button Grid.Column="1" Style="{StaticResource FooterIconButton}" Tag="Spatial" Click="Spatial_Click" IsEnabled="{Binding HasDevices}" Content="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" ToolTip="Proveedores y propiedades de sonido espacial en Windows" AutomationProperties.Name="Configurar sonido espacial en Windows"/>
                     </Grid>
                 </Border>
+                <Button x:Name="DefaultInputButton" Grid.Column="0" Style="{StaticResource FooterGroupButton}" Content="{Binding DefaultInputLabel}" FontSize="11" FontWeight="SemiBold" Click="DefaultInput_Click" IsEnabled="{Binding HasDevices}" Visibility="{Binding IsInputMode, Converter={StaticResource VisibleIf}}" ToolTip="Usar esta entrada para el sistema y las comunicaciones" AutomationProperties.Name="Hacer entrada predeterminada"/>
+                <Button Grid.Column="1" Style="{StaticResource FooterGroupButton}" Content="Canales / formato" FontSize="10.5" FontWeight="SemiBold" Click="Spatial_Click" IsEnabled="{Binding HasDevices}" Visibility="{Binding IsInputMode, Converter={StaticResource VisibleIf}}" ToolTip="Abrir propiedades de esta entrada en Windows para configurar canales, formato y mejoras" AutomationProperties.Name="Configurar canales y formato de la entrada en Windows"/>
                 <Border Grid.Column="1" Width="1" Height="24" Background="#70142C28" HorizontalAlignment="Left" IsHitTestVisible="False" Panel.ZIndex="3"/>
                 <Border Grid.Column="2" Width="1" Height="24" Background="#70142C28" HorizontalAlignment="Left" IsHitTestVisible="False" Panel.ZIndex="3"/>
                 <Border Grid.Column="2"><Border.Style><Style TargetType="Border"><Setter Property="Background" Value="Transparent"/><Style.Triggers><DataTrigger Binding="{Binding AutoSwitchOnNavigation}" Value="True"><Setter Property="Background" Value="#2D5C4E"/></DataTrigger><Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.85"/></Trigger></Style.Triggers></Style></Border.Style>
-                    <CheckBox Style="{StaticResource FooterCheckBox}" Content="Fijar al navegar" Margin="0" IsChecked="{Binding AutoSwitchOnNavigation, Mode=TwoWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ToolTip="Cambia la salida automáticamente al recorrer el arco. Desmarcá para elegir con Enter o clic." AutomationProperties.Name="Fijar salida al navegar"/>
+                    <CheckBox Style="{StaticResource FooterCheckBox}" Content="Fijar al navegar" Margin="0" IsChecked="{Binding AutoSwitchOnNavigation, Mode=TwoWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ToolTip="{Binding NavigationHint}" AutomationProperties.Name="Fijar dispositivo al navegar"/>
                 </Border>
             </Grid>
         </Border>
-        <Border Grid.Row="3" Height="16" CornerRadius="0,0,15,15" Background="#2D5C4E" IsHitTestVisible="False"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsMirrorOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style></Border>
+        <Border Grid.Row="3" Height="26" CornerRadius="0,0,15,15" Background="#2D5C4E"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsMixerOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding IsMirrorOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style><Button x:Name="DeviceSectionButton" Style="{StaticResource FooterGroupButton}" Foreground="#E3FFF3" Content="{Binding DeviceSectionLabel}" FontSize="12" FontWeight="SemiBold" Click="DeviceSection_Click" IsEnabled="{Binding CanChangeMode}" ToolTip="{Binding DeviceSectionHint}" AutomationProperties.Name="{Binding DeviceSectionHint}"/></Border>
         <Grid Grid.Row="1" Grid.RowSpan="3" Margin="20,8,20,18">
             <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsSettingsOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Grid.Style>
             <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="48"/><RowDefinition Height="46"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Button Style="{StaticResource IconButton}" Content="&#xE72B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" HorizontalAlignment="Left" Click="SettingsBack_Click" ToolTip="Volver a dispositivos · Esc" AutomationProperties.Name="Volver a dispositivos"/>
             <TextBlock Text="Configuración" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <CheckBox Grid.Row="1" Content="Iniciar Better Audio con Windows" FontSize="14" Foreground="#D1E9DF" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" VerticalAlignment="Center" ToolTip="Se iniciará en la bandeja. Conservá la app en esta carpeta."/>
-            <StackPanel Grid.Row="2"><TextBlock Text="Dispositivos ocultos" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Podés volver a mostrarlos desde esta lista." FontSize="10" Foreground="#91B2A7" Margin="0,5,0,0"/></StackPanel>
-            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding HiddenDevices}"><ItemsControl.ItemTemplate><DataTemplate>
-                <Border Background="#263B4D46" CornerRadius="12" Padding="10" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <Button Grid.Column="1" Style="{StaticResource Pill}" Content="Mostrar" FontSize="10" Padding="9,6" Click="RestoreDevice_Click" AutomationProperties.Name="{Binding Value, StringFormat=Mostrar {0}}"/>
-                </Grid></Border>
-            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
-            <TextBlock Grid.Row="3" Text="No hay dispositivos ocultos." FontSize="12" Foreground="#91B2A7" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasHiddenDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+            <StackPanel Grid.Row="2"><TextBlock Text="Dispositivos ocultos" FontSize="13" FontWeight="SemiBold"/><TextBlock Text="Podés volver a mostrarlos desde su sección." FontSize="10" Foreground="#91B2A7" Margin="0,5,0,0"/></StackPanel>
+            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+                <TextBlock Text="Salidas" FontSize="12" FontWeight="SemiBold" Foreground="#96E6C9" Margin="0,8,0,8"/>
+                <ItemsControl ItemsSource="{Binding HiddenDevices}"><ItemsControl.ItemTemplate><DataTemplate>
+                    <Border Background="#263B4D46" CornerRadius="12" Padding="10" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Style="{StaticResource Pill}" Content="Mostrar" Tag="Output" FontSize="10" Padding="9,6" Click="RestoreDevice_Click" AutomationProperties.Name="{Binding Value, StringFormat=Mostrar {0}}"/>
+                    </Grid></Border>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Text="No hay salidas ocultas." FontSize="11" Foreground="#91B2A7" Margin="0,0,0,8"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasHiddenDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+                <TextBlock Text="Entradas" FontSize="12" FontWeight="SemiBold" Foreground="#96E6C9" Margin="0,8,0,8"/>
+                <ItemsControl ItemsSource="{Binding HiddenInputDevices}"><ItemsControl.ItemTemplate><DataTemplate>
+                    <Border Background="#263B4D46" CornerRadius="12" Padding="10" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Style="{StaticResource Pill}" Content="Mostrar" Tag="Input" FontSize="10" Padding="9,6" Click="RestoreDevice_Click" AutomationProperties.Name="{Binding Value, StringFormat=Mostrar {0}}"/>
+                    </Grid></Border>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Text="No hay entradas ocultas." FontSize="11" Foreground="#91B2A7" Margin="0,0,0,8"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasHiddenInputDevices}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+            </StackPanel></ScrollViewer>
             <TextBlock Grid.Row="4" Text="{Binding Message}" Foreground="#EBC9AA" FontSize="10" TextWrapping="Wrap" Visibility="{Binding HasMessage, Converter={StaticResource VisibleIf}}"/>
         </Grid>
         <Grid x:Name="MirrorView" Grid.Row="1" Grid.RowSpan="3" Margin="20,8,20,18">

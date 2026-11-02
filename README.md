@@ -1,6 +1,6 @@
 # Better Audio UX
 
-A compact Windows 11 audio HUD that puts output devices and application volume one click away. It lives in the system tray and reduces the steps needed to switch between headphones and speakers, adjust volume, or mute an application.
+A compact Windows 11 audio HUD that puts output devices, microphones, and application volume one click away. It lives in the system tray and reduces the steps needed to switch between headphones and speakers, adjust volume, or mute an application.
 
 Built with **C#, WPF, and .NET 10 LTS**. Current application release: **1.3.2**. The application interface is currently in Spanish; this documentation is in English.
 
@@ -29,6 +29,14 @@ Screenshots use demonstration data.
 - Pin the panel to keep it open while working in another application.
 - Position the HUD above its tray icon, respecting monitor boundaries and DPI.
 - Smoothly expand and collapse between the main view and mixer, respecting Windows animation preferences.
+
+## Inputs and microphones
+
+Click **Salidas ⇄** at the bottom of the footer to switch to **Entradas ⇄**; click again to return. Inputs reuse the carousel, volume, mute, ordering, hiding, and keyboard controls. **Fijar al navegar** is saved separately for each section. Browsing in manual mode preserves the current default; **Predeterminar**, clicking a bubble, or Enter sets the selected input for system audio and communications.
+
+**Escuchar** temporarily monitors the selected input through the output that is default when listening starts, at a moderate preview gain. Use headphones to avoid feedback. **Detener** ends listening; browsing to another input, hiding the monitored device, opening internal settings, switching sections, dismissing the panel, disconnecting a device, or exiting also stops it. This preview does not save recordings or enable Windows' persistent “Listen to this device” option. Microphone access must be allowed for desktop apps in Windows privacy settings.
+
+**Canales / formato** opens the selected input's Windows properties, where the driver exposes its supported formats, channels and enhancements. These settings are managed by Windows. Input mode replaces the output mixer and spatial controls with input actions. Internal **Configuración** lists hidden **Salidas** and **Entradas** separately, with independent restore actions. Ordering and hidden inputs are retained across restarts without changing existing output preferences.
 
 ## Download and run
 
@@ -104,13 +112,13 @@ GitHub Actions builds, tests, and publishes a portable artifact on Windows. See 
 
 - Portable, unsigned application without an installer or automatic updater.
 - Output switching uses the undocumented Windows `IPolicyConfig` interface, which may need changes in future Windows versions.
-- Microphone controls and per-application output routing are not included. Applications with explicitly assigned outputs may retain those assignments.
+- Per-application routing is not included. Applications with explicitly assigned devices may retain those assignments.
 - Physical Bluetooth/USB reconnection and mixed-monitor/DPI setups need testing on the relevant hardware.
 - Application icons fall back to a generic icon when Windows cannot provide them.
 
 ## Privacy and troubleshooting
 
-No accounts, application telemetry, or remote services. Preferences and rotating logs are stored locally under `%LOCALAPPDATA%\BetterAudio`. Windows startup is opt-in through internal settings. Output order, hidden outputs and navigation preferences save immediately to `settings.json`, independently of the executable folder. Saves are atomic and keep a previous valid configuration in `settings.json.bak` for recovery. Rebuilding or replacing the portable app preserves these files.
+No accounts, application telemetry, or remote services. Preferences and rotating logs are stored locally under `%LOCALAPPDATA%\BetterAudio`. Windows startup is opt-in through internal settings. Input/output order, hidden devices and separate navigation preferences save immediately to `settings.json`, independently of the executable folder. Saves are atomic and keep a previous valid configuration in `settings.json.bak` for recovery. Rebuilding or replacing the portable app preserves these files.
 
 To report a problem, [open an issue](https://github.com/NicLen17/better-audio-ux/issues) with your Windows version, reproduction steps, and expected behavior. Review logs before sharing them.
 

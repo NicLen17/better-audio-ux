@@ -12,11 +12,15 @@ public interface IUserPreferences
     bool AutoSwitchOnNavigation { get; set; }
     IReadOnlyList<string> DeviceOrder { get; set; }
     IReadOnlyDictionary<string, string> HiddenDevices { get; set; }
+    bool InputAutoSwitchOnNavigation { get; set; }
+    IReadOnlyList<string> InputDeviceOrder { get; set; }
+    IReadOnlyDictionary<string, string> HiddenInputDevices { get; set; }
 }
 
 public sealed class UserPreferences : IUserPreferences
 {
-    private sealed record Settings(bool AutoSwitchOnNavigation = true, string[]? DeviceOrder = null, Dictionary<string, string>? HiddenDevices = null)
+    private sealed record Settings(bool AutoSwitchOnNavigation = true, string[]? DeviceOrder = null, Dictionary<string, string>? HiddenDevices = null,
+        bool InputAutoSwitchOnNavigation = true, string[]? InputDeviceOrder = null, Dictionary<string, string>? HiddenInputDevices = null)
     {
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? AdditionalSettings { get; init; }
@@ -39,7 +43,8 @@ public sealed class UserPreferences : IUserPreferences
             var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path));
             return settings is null ? null : settings with
             {
-                DeviceOrder = settings.DeviceOrder?.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToArray()
+                DeviceOrder = settings.DeviceOrder?.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToArray(),
+                InputDeviceOrder = settings.InputDeviceOrder?.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToArray()
             };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -69,6 +74,21 @@ public sealed class UserPreferences : IUserPreferences
             var hidden = new Dictionary<string, string>(value);
             Save(settings => settings with { HiddenDevices = hidden });
         }
+    }
+    public bool InputAutoSwitchOnNavigation
+    {
+        get => _settings.InputAutoSwitchOnNavigation;
+        set => Save(settings => settings with { InputAutoSwitchOnNavigation = value });
+    }
+    public IReadOnlyList<string> InputDeviceOrder
+    {
+        get => Array.AsReadOnly(_settings.InputDeviceOrder ?? []);
+        set => Save(settings => settings with { InputDeviceOrder = value.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToArray() });
+    }
+    public IReadOnlyDictionary<string, string> HiddenInputDevices
+    {
+        get => new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(_settings.HiddenInputDevices ?? new());
+        set => Save(settings => settings with { HiddenInputDevices = new(value) });
     }
     private void Save(Func<Settings, Settings> update)
     {

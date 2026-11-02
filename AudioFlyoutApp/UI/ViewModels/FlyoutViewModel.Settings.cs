@@ -10,11 +10,14 @@ public sealed partial class FlyoutViewModel
 {
     private readonly IStartupService _startup;
     private Dictionary<string, string> _hiddenDevices;
+    private Dictionary<string, string> _hiddenInputDevices;
     private bool _isSettingsOpen;
     private bool _startWithWindows;
     public bool IsSettingsOpen => _isSettingsOpen;
     public ObservableCollection<KeyValuePair<string, string>> HiddenDevices { get; } = new();
     public bool HasHiddenDevices => HiddenDevices.Count > 0;
+    public ObservableCollection<KeyValuePair<string, string>> HiddenInputDevices { get; } = new();
+    public bool HasHiddenInputDevices => HiddenInputDevices.Count > 0;
     public bool StartWithWindows
     {
         get => _startWithWindows;
@@ -28,6 +31,7 @@ public sealed partial class FlyoutViewModel
     }
     public async Task OpenSettingsAsync()
     {
+        await StopListeningAsync();
         CloseMirror();
         await CloseMixerAsync();
         _isSettingsOpen = true;
@@ -45,7 +49,8 @@ public sealed partial class FlyoutViewModel
     {
         if (SelectedDevice is not { } device) return;
         var nextId = Devices.Count > 1 ? Devices[(_selectedIndex + 1) % Devices.Count].Id : null;
-        _hiddenDevices[device.Id] = device.Name;
+        if (IsInputMode) await StopListeningAsync();
+        CurrentHiddenDevices[device.Id] = device.Name;
         SaveHiddenDevices();
         await RefreshAsync();
         var next = System.Linq.Enumerable.FirstOrDefault(Devices, d => d.Id == nextId);
@@ -55,23 +60,26 @@ public sealed partial class FlyoutViewModel
             if (_autoSwitch) await RequestSwitchAsync(next.Id);
         }
     }
-    public async Task RestoreDeviceAsync(string id)
+    public async Task RestoreDeviceAsync(string id, bool input = false)
     {
-        if (!_hiddenDevices.Remove(id)) return;
-        SaveHiddenDevices();
+        if (!(input ? _hiddenInputDevices : _hiddenDevices).Remove(id)) return;
+        SaveHiddenDevices(input);
         await RefreshAsync();
     }
-    private void SaveHiddenDevices()
+    private void SaveHiddenDevices(bool? input = null)
     {
         Message = "";
         UpdateHiddenDevices();
-        try { _preferences.HiddenDevices = _hiddenDevices; }
+        try { if (input ?? IsInputMode) _preferences.HiddenInputDevices = _hiddenInputDevices; else _preferences.HiddenDevices = _hiddenDevices; }
         catch (Exception ex) { ReportError("Los dispositivos ocultos se recordarán solo durante esta sesión.", ex); }
     }
     private void UpdateHiddenDevices()
     {
         HiddenDevices.Clear();
         foreach (var device in _hiddenDevices) HiddenDevices.Add(device);
+        HiddenInputDevices.Clear();
+        foreach (var device in _hiddenInputDevices) HiddenInputDevices.Add(device);
         Notify(nameof(HasHiddenDevices));
+        Notify(nameof(HasHiddenInputDevices));
     }
 }

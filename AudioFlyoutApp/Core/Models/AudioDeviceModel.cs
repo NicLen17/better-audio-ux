@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 
 namespace BetterAudio.Core.Models;
 
+public enum AudioDeviceFlow { Output, Input }
+
 public sealed record DeviceSnapshot(string Id, string Name, string Kind, string Glyph, int Volume, bool Muted, bool IsDefault);
 
 public sealed class AudioDeviceModel : INotifyPropertyChanged
@@ -36,7 +38,7 @@ public sealed class AudioDeviceModel : INotifyPropertyChanged
         if (opening > 0 && name.EndsWith(')'))
         {
             var prefix = name[..opening].Trim();
-            name = Regex.IsMatch(prefix, "^(altavoces|speakers|headphones|headset|auriculares|audífono)", RegexOptions.IgnoreCase)
+            name = Regex.IsMatch(prefix, "^(altavoces|speakers|headphones|headset|auriculares|audífono|micrófono|microphone|micrófonos|microphones)", RegexOptions.IgnoreCase)
                 ? name[(opening + 1)..^1] : prefix;
         }
         name = Regex.Replace(name, @"^\d+\s*-\s*", "");

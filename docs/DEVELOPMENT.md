@@ -1,6 +1,6 @@
 # Development guide
 
-Better Audio UX is a Windows 11 output selector built with C#, WPF, and .NET 10 LTS. Its UI is in Spanish. It includes an integrated session mixer, Windows Sonic controls, and animated view transitions.
+Better Audio UX is a Windows 11 input/output selector built with C#, WPF, and .NET 10 LTS. Its UI is in Spanish. It includes an integrated session mixer, Windows Sonic controls, and animated view transitions.
 
 ## Running locally
 
@@ -27,7 +27,7 @@ The spatial toggle selects Windows Sonic when enabled and disables processing wh
 ## Implementation decisions
 
 - **.NET 10 LTS:** the desktop application targets .NET 10. See the [official support policy](https://dotnet.microsoft.com/en-us/platform/support/policy).
-- **WPF HUD:** 408 × 378 DIPs in the main view and 408 × 482 in the mixer; messages add 28 DIPs. The footer has three rectangular sections and a separate rounded base with a dark separator. Gear colors invert when spatial audio is enabled. Mouse clicks do not leave a persistent focus border; keyboard navigation retains its focus indicator.
+- **WPF HUD:** 408 × 388 DIPs in the main view and 408 × 482 in the mixer; messages add 28 DIPs. The footer has three rectangular action sections and a rounded Salidas/Entradas switch with a dark separator. Gear colors invert when spatial audio is enabled. Mouse clicks do not leave a persistent focus border; keyboard navigation retains its focus indicator.
 - **Native tray icon:** GUID identity and `Shell_NotifyIconW`; [actual bounds](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shell_notifyicongetrect) rather than reflection into private NotifyIcon fields. Protocol v4 replaces the standard tooltip with the HUD. Explorer restarts restore the icon. The context menu uses Windows Forms.
 - **NAudio.Wasapi 3.3.0:** a focused dependency instead of the NAudio metapackage. `CreateNotificationClient()` receives connection, removal, rename, and default-output notifications. Endpoint volume/mute events are also observed. [Source](https://github.com/naudio/NAudio).
 - **Dedicated COM thread:** UI code receives snapshots, never live COM objects. Endpoint notifications coalesce for 100 ms; volume writes coalesce for 45 ms. Queued writes preserve endpoint and session identifiers when navigation changes. Closing the mixer releases its session notifications.
@@ -100,3 +100,13 @@ The transfer buffer is limited to 400 ms. Capture clears a backlog exceeding 150
 Regression tests cover the panel state, invalid pairs, serialization, copy volume, interruption, and recovery. Run `AudioFlyoutApp.Tests.dll --mirror-live` for a hardware test: it plays short chimes on the current default, copies them at 25% to another audible endpoint, measures destination loopback audio, verifies copy silence at 0%, and checks restart/worker-stop cleanup and preservation of endpoint settings. It requires two active outputs and no unrelated audio on the destination. `--render` also writes `artifacts/hud-mirror-preview.png`.
 
 Mixer wheel input is handled both as WPF preview events and as native vertical/horizontal wheel messages over the list bounds. Transparent background makes gaps hit-testable. Scrollbar track values bind in both directions. Regression tests exercise an overflowing 12-session list, native input, volume preservation, and reaching the bottom. `--mirror-level-live` compares a 523.25 Hz test tone copied at 100% with direct playback on the destination, at headphone master levels of 35% and 65%, then checks copy gain at 50% and 0%. Original source master level is restored in a finally block. The destination must be free of unrelated audio for reliable measurements.
+
+## Input device section
+
+`IAudioDeviceManager.GetDevicesAsync(AudioDeviceFlow.Input)` enumerates active capture endpoints and their multimedia default. The manager keeps both flows on its Core Audio apartment and releases stale devices only within the enumerated flow, preserving output sessions/mirroring when input discovery runs. Default changes in both flows trigger refresh. Activation uses the existing three-role policy setter.
+
+The view model shares carousel/volume logic and keeps independent input/output ordering, hidden devices and automatic-navigation preferences. Existing preference files migrate through optional fields. Section transitions wait for pending activation and enumeration before changing lists. Input controls suppress output-only mixer, mirroring and spatial actions. Channels/format link to Windows endpoint properties rather than rewriting undocumented device formats.
+
+`IAudioInputService` implements an explicit temporary input monitor using shared WASAPI capture and playback. Capture is stereo float at 48 kHz with Windows shared-mode conversion; playback uses the output default captured at start, with 50% preview gain and bounded buffering. It does not save audio or change defaults, master volume, or persistent Windows listening settings. Stop/dispose run on the audio apartment, never from audio callbacks. Closing/dismissing the HUD, changing selection/section, hiding the device, opening internal settings and shutdown stop monitoring. A generation counter cancels late capture startup after dismissal.
+
+The regression executable covers flow isolation, independent preference migration/persistence, microphone level/mute/default controls, capture failure, monitor cancellation and empty input navigation. `--input-live` performs read-only native capture/render enumeration and rejects render endpoints for microphone listening; it never starts recording. `--render` includes `artifacts/hud-inputs-preview.png`. `--input-listen-live` checks native monitor startup and cleanup only if the default microphone is already muted, preserving all endpoint settings. Audible quality/latency, Bluetooth reconnect and driver-specific channel/format controls still require hardware validation.

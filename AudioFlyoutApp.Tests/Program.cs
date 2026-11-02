@@ -34,8 +34,10 @@ internal static class Program
                 else if (args.Contains("--mirror-level-live")) await MirrorLevelsLiveAsync();
                 else if (args.Contains("--mirror-live")) await MirrorLiveAsync();
                 else if (args.Contains("--test-sound-live")) await TestSoundLiveAsync();
+                else if (args.Contains("--input-listen-live")) await InputListenLiveAsync();
+                else if (args.Contains("--input-live")) await InputLiveAsync();
                 else if (args.Contains("--live")) await LiveAsync();
-                else { MirrorDownmix(); await MirrorAsync(dispatcher); AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
+                else { await InputsAsync(dispatcher); MirrorDownmix(); await MirrorAsync(dispatcher); AudioShutdownTimeout(); await TestSoundAsync(dispatcher); await HiddenDevicesAsync(dispatcher); await DeviceOrderAsync(dispatcher); await RegressionAsync(dispatcher); await AutomaticSwitchAsync(dispatcher); await MixerAndSpatialAsync(dispatcher); GeometryAndPreferences(); await HudLayoutAsync(dispatcher); await AnimationAndOpeningAsync(dispatcher); }
                 Console.WriteLine($"PASS: {_assertions} assertions");
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); exitCode = 1; }
@@ -51,6 +53,113 @@ internal static class Program
         Console.WriteLine("PASS: " + reason);
     }
     private static DeviceSnapshot Device(string id, bool active = false, int volume = 50) => new(id, id, "Test", "", volume, false, active);
+    private static async Task InputListenLiveAsync()
+    {
+        using var audio = new AudioDeviceManager();
+        var outputs = await audio.GetDevicesAsync();
+        var inputs = await audio.GetDevicesAsync(AudioDeviceFlow.Input);
+        var input = inputs.FirstOrDefault(d => d.IsDefault && d.Muted)
+            ?? throw new InvalidOperationException("This silent pipeline check requires the default microphone to already be muted; it never unmutes it.");
+        try
+        {
+            await audio.StartListeningAsync(input.Id);
+            await Task.Delay(250);
+            var state = await audio.GetListenStateAsync();
+            Check(state.IsActive && state.InputId == input.Id && state.OutputId == outputs.First(d => d.IsDefault).Id, "Native microphone monitor starts shared capture/playback on the selected input and current output");
+        }
+        finally { await audio.StopListeningAsync(); }
+        Check(!(await audio.GetListenStateAsync()).IsActive, "Native microphone stop releases the monitor");
+        Check(outputs.SequenceEqual(await audio.GetDevicesAsync()) && inputs.SequenceEqual(await audio.GetDevicesAsync(AudioDeviceFlow.Input)), "Silent pipeline check preserves microphone mute, levels and both system defaults");
+    }
+    private static async Task InputLiveAsync()
+    {
+        using var audio = new AudioDeviceManager();
+        var outputs = await audio.GetDevicesAsync();
+        var inputs = await audio.GetDevicesAsync(AudioDeviceFlow.Input);
+        Check(inputs.All(d => d.Volume is >= 0 and <= 100), "Windows capture endpoints expose valid volumes");
+        Check(!inputs.Select(d => d.Id).Intersect(outputs.Select(d => d.Id)).Any(), "Capture and render enumeration use distinct endpoint flows");
+        foreach (var input in inputs) Console.WriteLine($"{(input.IsDefault ? "*" : " ")} Input: {input.Name}, volume={input.Volume}, muted={input.Muted}");
+        for (var i = 0; i < 10; i++)
+        {
+            await audio.GetDevicesAsync();
+            await audio.GetDevicesAsync(AudioDeviceFlow.Input);
+        }
+        var afterOutputs = await audio.GetDevicesAsync();
+        var afterInputs = await audio.GetDevicesAsync(AudioDeviceFlow.Input);
+        Check(outputs.SequenceEqual(afterOutputs) && inputs.SequenceEqual(afterInputs), "Alternating native input/output enumeration preserves defaults, levels and mute states");
+        Check(!(await audio.GetListenStateAsync()).IsActive, "Device discovery does not start microphone recording or monitoring");
+        if (outputs.FirstOrDefault() is { } output)
+        {
+            try { await audio.StartListeningAsync(output.Id); Check(false, "Render device rejected for microphone capture"); }
+            catch (InvalidOperationException) { Check(!(await audio.GetListenStateAsync()).IsActive, "Native input listener rejects a render endpoint before opening capture"); }
+        }
+    }
+    private static async Task InputsAsync(Dispatcher dispatcher)
+    {
+        using var audio = new FakeAudio { Devices = [Device("A", true), Device("B")], Inputs = [Device("mic1", true), Device("mic2"), Device("line")] };
+        var prefs = new MemoryPreferences(false) { InputAutoSwitchOnNavigation = false };
+        using var vm = new FlyoutViewModel(audio, dispatcher, prefs, new MemoryStartup());
+        await vm.RefreshAsync();
+        await vm.ToggleDeviceSectionAsync();
+        Check(vm.IsInputMode && vm.Devices.Count == 3 && vm.SelectedDevice?.Id == "mic1" && !vm.AutoSwitchOnNavigation, "Input section reads capture devices and its own navigation preference");
+        Check(!vm.CanTestSound && !vm.CanToggleSpatial && vm.CanListen, "Inputs expose listening instead of output test/spatial actions");
+        vm.MoveSelection(1);
+        Check(audio.Commits == 0 && vm.SelectedDevice?.Id == "mic2", "Manual input browsing preserves the default microphone");
+        await vm.CommitAsync();
+        Check(vm.SelectedIsDefault && audio.Devices.Single(d => d.Id == "A").IsDefault, "Input activation preserves the default output");
+        vm.Volume = 73; await Task.Delay(150);
+        await vm.ToggleMuteAsync();
+        Check(audio.Inputs.Single(d => d.Id == "mic2") is { Volume: 73, Muted: true } && audio.Devices.Single(d => d.Id == "A").Volume == 50, "Microphone level and mute target only the selected capture endpoint");
+        await vm.ToggleListeningAsync();
+        Check(!vm.IsListening && vm.HasMessage, "Muted microphone cannot start a misleading listen preview");
+        await vm.ToggleMuteAsync();
+        audio.FailListen = true; await vm.ToggleListeningAsync();
+        Check(!vm.IsListening && vm.HasMessage && vm.CanListen, "Capture permission failure is reported and listening can retry");
+        audio.FailListen = false; await vm.ToggleListeningAsync();
+        Check(vm.IsListening && vm.ListenLabel == "Detener", "Listening shows an explicit active state and stop action");
+        vm.MoveSelection(1); await Task.Delay(20);
+        Check(!audio.ListenState.IsActive, "Browsing away stops microphone monitoring");
+        vm.SetSelectedPosition(1);
+        Check(prefs.InputDeviceOrder[0] == "line" && prefs.DeviceOrder.Count == 0, "Input ordering is saved separately from output ordering");
+        await vm.HideSelectedDeviceAsync();
+        Check(vm.HiddenInputDevices.Single().Key == "line" && vm.HiddenDevices.Count == 0 && prefs.HiddenInputDevices.ContainsKey("line"), "Hidden microphones have a separate persisted settings category");
+        await vm.ToggleDeviceSectionAsync();
+        Check(vm.IsOutputMode && vm.Devices.Select(d => d.Id).SequenceEqual(["A", "B"]) && !vm.AutoSwitchOnNavigation, "Returning to outputs restores their independent preferences and list");
+        await vm.RestoreDeviceAsync("line", input: true);
+        Check(vm.Devices.Count == 2 && vm.HiddenInputDevices.Count == 0, "Restoring an input from output settings leaves the output carousel intact");
+        await vm.ToggleDeviceSectionAsync();
+        vm.AutoSwitchOnNavigation = true;
+        vm.MoveSelection(1); await Task.Delay(50);
+        Check(vm.SelectedIsDefault && prefs.InputAutoSwitchOnNavigation && !prefs.AutoSwitchOnNavigation, "Automatic microphone switching follows navigation without changing output preference");
+        audio.ListenDelay = 80;
+        var listen = vm.ToggleListeningAsync();
+        await vm.StopListeningAsync(); await listen;
+        Check(!audio.ListenState.IsActive && !vm.IsListening, "Closing during capture startup cannot leave monitoring active");
+        audio.ListenDelay = 0;
+        await vm.ToggleListeningAsync(); await vm.OpenSettingsAsync();
+        Check(!vm.IsListening && vm.IsSettingsOpen, "Opening internal settings stops microphone monitoring");
+        vm.CloseSettings();
+        await vm.HideSelectedDeviceAsync();
+        while (vm.HasDevices) await vm.HideSelectedDeviceAsync();
+        Check(vm.IsInputMode && !vm.CanListen && !vm.CanInteract && vm.SelectedName.Contains("entrada"), "Hiding every input leaves an actionable empty input section");
+        await vm.ToggleDeviceSectionAsync();
+        Check(vm.HasDevices && vm.IsOutputMode, "The footer can return to outputs even when no microphones are visible");
+
+        var directory = Path.Combine(Path.GetTempPath(), "BetterAudio-inputs-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "settings.json");
+        try
+        {
+            File.WriteAllText(path, "{\"AutoSwitchOnNavigation\":false,\"DeviceOrder\":[\"A\"],\"HiddenDevices\":{\"B\":\"Speakers\"}}");
+            var saved = new UserPreferences(path);
+            saved.InputAutoSwitchOnNavigation = false; saved.InputDeviceOrder = ["mic2", "mic1"];
+            saved.HiddenInputDevices = new Dictionary<string, string> { ["line"] = "Line in" };
+            var reloaded = new UserPreferences(path);
+            Check(!reloaded.AutoSwitchOnNavigation && reloaded.DeviceOrder.Single() == "A" && reloaded.HiddenDevices.ContainsKey("B") &&
+                !reloaded.InputAutoSwitchOnNavigation && reloaded.InputDeviceOrder[0] == "mic2" && reloaded.HiddenInputDevices.ContainsKey("line"), "Existing output preferences migrate and survive input preference writes and restart");
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
     private sealed class SampleFixture(int channels, params float[] samples) : NAudio.Wave.ISampleProvider
     {
         private int _offset;
@@ -462,13 +571,13 @@ internal static class Program
         try
         {
             var root = (System.Windows.FrameworkElement)window.Content;
-            root.Measure(new System.Windows.Size(408, 378));
-            root.Arrange(new System.Windows.Rect(0, 0, 408, 378));
+            root.Measure(new System.Windows.Size(408, 388));
+            root.Arrange(new System.Windows.Rect(0, 0, 408, 388));
             root.UpdateLayout();
             var carousel = (System.Windows.Controls.ItemsControl)window.FindName("Carousel");
             Check(carousel.ItemContainerGenerator.ContainerFromIndex(1) is not null,
                 "First HUD layout generates its radial items host with a preselected device");
-            Check(window.Width == 408 && window.Height == 378 && window.AllowsTransparency,
+            Check(window.Width == 408 && window.Height == 388 && window.AllowsTransparency,
                 "HUD loads its compact dimensions and transparent window bindings");
             var pin = (System.Windows.Controls.Button)window.FindName("PinButton");
             pin.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -529,7 +638,7 @@ internal static class Program
             new("a", "Altavoces (Realtek High Definition)", "Altavoces", "\uE767", 52, false, false),
             new("b", "Audífono (CORSAIR HS80 MAX WIRELESS Gaming Headset)", "Auriculares", "\uE7F6", 28, false, true),
             new("c", "Monitor (DisplayPort)", "Pantalla", "\uE7F4", 60, false, false)
-        ], Sessions = [new("b", "browser", "Google Chrome", 74, false, true), new("b", "music", "Música", 42, false, true), new("b", "system", "Sonidos del sistema", 25, true, false)] };
+        ], Inputs = [new("mic1", "Micrófono (CORSAIR HS80 MAX)", "Micrófono · entrada de audio", "\uE720", 82, false, true), new("mic2", "Micrófono (Realtek Audio)", "Micrófono", "\uE720", 65, false, false)], Sessions = [new("b", "browser", "Google Chrome", 74, false, true), new("b", "music", "Música", 42, false, true), new("b", "system", "Sonidos del sistema", 25, true, false)] };
         using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(true)
         {
             HiddenDevices = new Dictionary<string, string>
@@ -542,11 +651,13 @@ internal static class Program
         var window = new FlyoutWindow(vm);
         try
         {
-            foreach (var view in new[] { "outputs", "mixer", "settings", "mirror" })
+            foreach (var view in new[] { "outputs", "mixer", "settings", "mirror", "inputs" })
             {
+                if (view == "inputs") await vm.ToggleDeviceSectionAsync();
                 if (view == "mixer") await vm.OpenMixerAsync();
                 if (view == "settings") await vm.OpenSettingsAsync();
                 if (view == "mirror") await vm.OpenMirrorAsync();
+                if (view == "inputs") { await Task.Delay(350); window.UpdateLayout(); }
                 var root = (System.Windows.FrameworkElement)window.Content;
                 root.Measure(new System.Windows.Size(408, vm.HudHeight));
                 root.Arrange(new System.Windows.Rect(0, 0, 408, vm.HudHeight)); root.UpdateLayout();
@@ -666,15 +777,15 @@ internal static class Program
         await vm.OpenMixerAsync();
         await Task.Delay(100);
         if (System.Windows.SystemParameters.ClientAreaAnimation)
-            Check(window.Height > 378 && window.Height < 482, "Mixer expansion passes through intermediate heights");
+            Check(window.Height > 388 && window.Height < 482, "Mixer expansion passes through intermediate heights");
         var expandingHeight = window.Height;
         await vm.CloseMixerAsync();
         if (System.Windows.SystemParameters.ClientAreaAnimation)
             Check(Math.Abs(window.Height - expandingHeight) < 3, "Reversing a resize starts from its current height without snapping");
         else
-            Check(Math.Abs(window.Height - 378) < 1, "With animations disabled, returning to Main resizes immediately");
+            Check(Math.Abs(window.Height - 388) < 1, "With animations disabled, returning to Main resizes immediately");
         await Task.Delay(360);
-        Check(Math.Abs(window.Height - 378) < 1 && window.Opacity == 1, "Returning to Main finishes at its compact height without fading the native window");
+        Check(Math.Abs(window.Height - 388) < 1 && window.Opacity == 1, "Returning to Main finishes at its compact height without fading the native window");
         await vm.OpenMixerAsync();
         await Task.Delay(360);
         Check(Math.Abs(window.Height - 482) < 1, "Mixer expansion reaches its final height");
@@ -778,7 +889,7 @@ internal static class Program
             new("b", "Audífono (CORSAIR HS80 MAX WIRELESS Gaming Headset)", "Auriculares", "\uE7F6", 28, false, true),
             new("c", "Monitor (DisplayPort)", "Pantalla", "\uE7F4", 60, false, false),
             new("d", "Altavoces (Steam Streaming Speakers)", "Altavoces", "\uE767", 74, false, false)
-        ], Sessions = [new("b", "browser", "Google Chrome", 74, false, true), new("b", "music", "Música", 42, false, true), new("b", "system", "Sonidos del sistema", 25, true, false)] } : new AudioDeviceManager();
+        ], Inputs = [new("mic1", "Micrófono (CORSAIR HS80 MAX)", "Micrófono · entrada de audio", "\uE720", 82, false, true), new("mic2", "Micrófono (Realtek Audio)", "Micrófono", "\uE720", 65, false, false)], Sessions = [new("b", "browser", "Google Chrome", 74, false, true), new("b", "music", "Música", 42, false, true), new("b", "system", "Sonidos del sistema", 25, true, false)] } : new AudioDeviceManager();
         using var vm = new FlyoutViewModel(audio, dispatcher, new MemoryPreferences(demo));
         await vm.RefreshAsync();
         var window = new BetterAudio.UI.Flyout.FlyoutWindow(vm) { ShowInTaskbar = true };
@@ -797,7 +908,7 @@ internal static class Program
         await dismissed.Task;
         window.CloseForExit();
     }
-    private sealed class FakeAudio : IAudioDeviceManager, IAudioMixerService, IAudioMirrorService
+    private sealed class FakeAudio : IAudioDeviceManager, IAudioMixerService, IAudioMirrorService, IAudioInputService
     {
         public AudioMirrorState MirrorState { get; set; } = new();
         public int MirrorVolume { get; private set; }
@@ -813,6 +924,18 @@ internal static class Program
         }
         public Task StopMirrorAsync() { MirrorState = new(); return Task.CompletedTask; }
         public Task SetMirrorVolumeAsync(int volume) { MirrorVolume = volume; return Task.CompletedTask; }
+        public InputListenState ListenState { get; set; } = new();
+        public bool FailListen { get; set; }
+        public int ListenDelay { get; set; }
+        public Task<InputListenState> GetListenStateAsync() => Task.FromResult(ListenState);
+        public async Task StartListeningAsync(string id)
+        {
+            if (ListenDelay > 0) await Task.Delay(ListenDelay);
+            if (FailListen) throw new InvalidOperationException("Microphone access denied");
+            ListenState = new(id, "A", "Speakers");
+        }
+        public Task StopListeningAsync() { ListenState = new(); return Task.CompletedTask; }
+        public List<DeviceSnapshot> Inputs { get; set; } = [];
         public List<DeviceSnapshot> Devices { get; set; } = [];
         public int Commits { get; private set; }
         public List<(string Id, int Volume)> Writes { get; } = [];
@@ -840,8 +963,8 @@ internal static class Program
         public int StopWatchCalls { get; private set; }
         public event EventHandler? Changed;
         public void Signal() => Changed?.Invoke(this, EventArgs.Empty);
-        public async Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync()
-        { ReadCalls++; if (ReadDelay > 0) await Task.Delay(ReadDelay); return Devices.ToArray(); }
+        public async Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync(AudioDeviceFlow flow = AudioDeviceFlow.Output)
+        { ReadCalls++; if (ReadDelay > 0) await Task.Delay(ReadDelay); return (flow == AudioDeviceFlow.Input ? Inputs : Devices).ToArray(); }
         public Task<IReadOnlyList<SessionSnapshot>> GetSessionsAsync(string deviceId) => Task.FromResult<IReadOnlyList<SessionSnapshot>>(Sessions.Where(s => s.DeviceId == deviceId).ToArray());
         public Task SetSessionVolumeAsync(string device, string session, int volume)
         { SessionWrites.Add((device, session, volume)); Sessions = Sessions.Select(s => s.DeviceId == device && s.Id == session ? s with { Volume = volume } : s).ToList(); Signal(); return Task.CompletedTask; }
@@ -861,7 +984,8 @@ internal static class Program
             {
                 if (SwitchDelay > 0) await Task.Delay(SwitchDelay);
                 Commits++;
-                Devices = Devices.Select(d => d with { IsDefault = d.Id == id }).ToList();
+                if (Inputs.Any(d => d.Id == id)) Inputs = Inputs.Select(d => d with { IsDefault = d.Id == id }).ToList();
+                else Devices = Devices.Select(d => d with { IsDefault = d.Id == id }).ToList();
             }
             finally { _concurrentSwitches--; }
         }
@@ -870,15 +994,20 @@ internal static class Program
             Writes.Add((id, volume));
             if (WriteDelay > 0) await Task.Delay(WriteDelay);
             Devices = Devices.Select(d => d.Id == id ? d with { Volume = volume } : d).ToList();
+            Inputs = Inputs.Select(d => d.Id == id ? d with { Volume = volume } : d).ToList();
             Signal();
         }
         public Task SetMuteAsync(string id, bool muted)
-        { Devices = Devices.Select(d => d.Id == id ? d with { Muted = muted } : d).ToList(); return Task.CompletedTask; }
+        { Devices = Devices.Select(d => d.Id == id ? d with { Muted = muted } : d).ToList();
+            Inputs = Inputs.Select(d => d.Id == id ? d with { Muted = muted } : d).ToList(); return Task.CompletedTask; }
         public void Dispose() { }
     }
     private sealed class MemoryPreferences(bool initial) : IUserPreferences
     {
         public bool AutoSwitchOnNavigation { get; set; } = initial;
+        public bool InputAutoSwitchOnNavigation { get; set; } = true;
+        public IReadOnlyList<string> InputDeviceOrder { get; set; } = [];
+        public IReadOnlyDictionary<string, string> HiddenInputDevices { get; set; } = new Dictionary<string, string>();
         public IReadOnlyList<string> DeviceOrder { get; set; } = [];
         public IReadOnlyDictionary<string, string> HiddenDevices { get; set; } = new Dictionary<string, string>();
     }

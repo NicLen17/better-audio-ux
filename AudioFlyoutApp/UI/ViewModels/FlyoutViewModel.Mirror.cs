@@ -50,6 +50,7 @@ public sealed partial class FlyoutViewModel
     }
     public async Task OpenMirrorAsync()
     {
+        if (IsInputMode) return;
         CloseSettings();
         await CloseMixerAsync();
         _isMirrorOpen = true; Message = "";

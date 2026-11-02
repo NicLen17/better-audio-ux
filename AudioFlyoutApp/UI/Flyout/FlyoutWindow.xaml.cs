@@ -135,6 +135,7 @@ public partial class FlyoutWindow : Window
 
     public void Dismiss()
     {
+        _ = ViewModel.StopListeningAsync();
         _presentationVersion++;
         IsOpening = false;
         if (!IsVisible) return;
@@ -171,11 +172,14 @@ public partial class FlyoutWindow : Window
     private async void InternalSettings_Click(object sender, RoutedEventArgs e) => await ViewModel.OpenSettingsAsync();
     private void SettingsBack_Click(object sender, RoutedEventArgs e) => ViewModel.CloseSettings();
     private async void TestSound_Click(object sender, RoutedEventArgs e) => await ViewModel.TestSelectedSoundAsync();
+    private async void DeviceSection_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleDeviceSectionAsync();
+    private async void Listen_Click(object sender, RoutedEventArgs e) => await ViewModel.ToggleListeningAsync();
+    private async void DefaultInput_Click(object sender, RoutedEventArgs e) => await ViewModel.CommitAsync();
     private async void HideDevice_Click(object sender, RoutedEventArgs e) => await ViewModel.HideSelectedDeviceAsync();
     private async void RestoreDevice_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: System.Collections.Generic.KeyValuePair<string, string> device })
-            await ViewModel.RestoreDeviceAsync(device.Key);
+            await ViewModel.RestoreDeviceAsync(device.Key, (sender as FrameworkElement)?.Tag as string == "Input");
     }
     private void Order_Click(object sender, RoutedEventArgs e)
     {

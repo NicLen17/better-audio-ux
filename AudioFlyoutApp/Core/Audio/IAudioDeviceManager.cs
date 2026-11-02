@@ -8,7 +8,7 @@ namespace BetterAudio.Core.Audio;
 public interface IAudioDeviceManager : IDisposable
 {
     event EventHandler? Changed;
-    Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync();
+    Task<IReadOnlyList<DeviceSnapshot>> GetDevicesAsync(AudioDeviceFlow flow = AudioDeviceFlow.Output);
     Task SetDefaultAsync(string id);
     Task PlayTestSoundAsync(string id);
     Task SetVolumeAsync(string id, int volume);

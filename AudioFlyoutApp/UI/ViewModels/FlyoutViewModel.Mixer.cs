@@ -30,7 +30,7 @@ public sealed partial class FlyoutViewModel
     public bool HasSessions => Sessions.Count > 0;
     public string MixerEmptyText => _mixerLoading ? "Buscando aplicaciones…" : "Abrí una aplicación con audio en esta salida.";
     public bool? SpatialEnabled => _spatialState.Enabled;
-    public bool CanToggleSpatial => HasDevices && _spatialState.CanToggle && !_spatialBusy;
+    public bool CanToggleSpatial => IsOutputMode && HasDevices && _spatialState.CanToggle && !_spatialBusy;
     public string SpatialHint => _spatialBusy ? "Aplicando sonido espacial…" : _spatialState.Hint;
 
     private void InitializeMixer()
@@ -41,6 +41,7 @@ public sealed partial class FlyoutViewModel
     }
     public async Task OpenMixerAsync()
     {
+        if (IsInputMode) return;
         CloseMirror();
         _isMixerOpen = true; _mixerVersion++; Message = "";
         Notify(nameof(IsMixerOpen)); Notify(nameof(HudHeight));
@@ -123,7 +124,7 @@ public sealed partial class FlyoutViewModel
     public async Task RefreshSpatialAsync(bool force = false)
     {
         var id = SelectedDevice?.Id;
-        if (_disposed || _spatialBusy) return;
+        if (_disposed || _spatialBusy || IsInputMode) return;
         if (!force && _spatialEndpoint == id && DateTime.UtcNow - _lastSpatialCheck < TimeSpan.FromSeconds(1)) return;
         _spatialEndpoint = id; _lastSpatialCheck = DateTime.UtcNow;
         var version = ++_spatialVersion;
